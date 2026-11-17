@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090e17">
+  <title>Local Group Explorer</title>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-icon" aria-hidden="true">✧</span>Local Group Explorer</div>
+    <button id="help" aria-haspopup="dialog"><span class="key-icon">?</span> Controls</button>
+  </header>
+  <main>
+    <aside>
+      <section class="catalog"><h1>Galaxy catalog</h1><div id="catalog"></div></section>
+      <section id="details" hidden></section>
+      <section class="scale-panel">
+        <h2>Scene scale</h2>
+        <label for="size">Galaxy size <output id="size-value" for="size">1×</output></label>
+        <input id="size" aria-label="Galaxy size" type="range" min="0.5" max="8" value="1" step="0.25">
+        <label for="separation">Galaxy separation <output id="separation-value" for="separation">1×</output></label>
+        <input id="separation" aria-label="Galaxy separation" type="range" min="0.25" max="2" value="1" step="0.25">
+      </section>
+    </aside>
+    <section class="viewport" aria-label="Interactive three-dimensional galaxy map">
+      <canvas id="sky" tabindex="0" aria-label="Galaxy map, use mouse and keyboard to explore"></canvas>
+      <div id="labels"></div>
+      <div class="viewport-top"><div><div class="eyebrow"><i></i> Visible light</div><h2 id="view-name">Local Group</h2></div><button id="overview">Overview</button></div>
+      <div class="viewport-bottom"><span id="mode">Overview</span><span class="ruler"><span id="distance"></span><i></i></span></div>
+      <div id="error" role="alert" hidden>This 3D view requires WebGL 2. Enable hardware acceleration in your browser and reload.</div>
+    </section>
+  </main>
+  <dialog id="controls"><form method="dialog"><h2>Navigation controls</h2><dl>
+    <dt>Orbit</dt><dd>Drag in the map</dd><dt>Zoom</dt><dd>Scroll the wheel</dd><dt>Free flight</dt><dd>W A S D to move, Q E to descend or rise. Drag to look around.</dd>
+    <dt>Inspect</dt><dd>Select a galaxy, then choose Frame galaxy.</dd><dt>Overview</dt><dd>Press Home or choose Overview.</dd>
+  </dl><button>Close</button></form></dialog>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
