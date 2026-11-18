@@ -8,7 +8,7 @@ export const lightYearsToKpc = (lightYears: number) => lightYears / lightYearsPe
 export function logarithmicDiameter(diameterKpc: number, largestDiameterKpc: number): number {
   // A wide log range keeps the faintest dwarfs legible in a group-wide view.
   const contrast = 10000
-  return 2 * largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
+  return 3.5 * largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
 }
 
 // Meet halfway between neighboring centers. Each side keeps a fixed envelope as the slider increases.

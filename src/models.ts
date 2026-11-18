@@ -183,5 +183,5 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
 // In a group-wide view, subpixel stellar tracers otherwise round down to black.
 export function emphasizeSubpixelStars(group: Group, enabled: boolean) {
   const field = group.children[0] as Points<BufferGeometry, ShaderMaterial>
-  field.material.uniforms.minIntensity.value = enabled ? 0.12 : 0.00015
+  field.material.uniforms.minIntensity.value = enabled ? 0.28 : 0.00015
 }

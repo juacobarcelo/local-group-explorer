@@ -56,7 +56,7 @@
         <label for="size">Galaxy size <output id="size-value" for="size">1×</output></label>
         <input id="size" aria-label="Galaxy size" type="range" min="0.5" max="8" value="1" step="0.25">
         <button id="log-size" type="button" aria-pressed="false">Logarithmic sizes</button>
-        <p id="log-size-note" hidden>Dwarfs are enlarged and faint stars brightened. Neighbors share the space halfway between their centers, leaving a 5% gap in 3D.</p>
+        <div id="log-size-note" hidden><p>Sizes and light are exaggerated to show galaxy shapes. Nearby galaxies can overlap.</p><label><input type="checkbox" id="limit-sizes"> Keep galaxy envelopes separate in 3D</label></div>
         <label for="separation">Galaxy separation <output id="separation-value" for="separation">1×</output></label>
         <input id="separation" aria-label="Galaxy separation" type="range" min="0.25" max="2" value="1" step="0.25">
       </section>
@@ -65,7 +65,7 @@
     <section class="viewport" aria-label="Interactive three-dimensional galaxy map">
       <canvas id="sky" tabindex="0" aria-label="Galaxy map, use mouse and keyboard to explore"></canvas>
       <div id="labels"></div>
-      <div class="viewport-top"><div><div class="eyebrow"><i></i> <span id="band">Visible light</span></div><h2 id="view-name">Local Group</h2></div><button id="overview">Overview</button></div>
+      <div class="viewport-top"><div><div class="eyebrow"><i></i> <span id="band">Visible light</span></div><h2 id="view-name">Local Group</h2></div><div class="actions"><button id="map-names" aria-pressed="true">Names</button><button id="overview">Overview</button></div></div>
       <div class="viewport-bottom"><span id="mode">Overview</span><span class="ruler"><span id="distance"></span><i></i></span></div>
       <div id="error" role="alert" hidden>This 3D view requires WebGL 2. Enable hardware acceleration in your browser and reload.</div>
     </section>

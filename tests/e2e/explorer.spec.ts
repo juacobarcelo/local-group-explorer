@@ -264,10 +264,16 @@ test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', 
   for (const [id, galaxy] of Object.entries(physical.galaxies)) {
     expect(compressed.galaxies[id].center).toEqual(galaxy.center);
   }
-  assertEnvelopes(compressed);
+  await page.getByRole('button', { name: 'Names', exact: true }).click();
+  await expect(page.locator('#labels')).toBeHidden();
+  await page.getByRole('button', { name: 'Names', exact: true }).click();
+  await page.locator('#limit-sizes').check();
+  const limited = await readScene(page);
+  expect(compressed.galaxies.andromeda.diameter).toBeGreaterThan(limited.galaxies.andromeda.diameter * 2);
+  assertEnvelopes(limited);
   await setScale(page, 'Galaxy size', 2);
   const enlarged = await readScene(page);
-  expect(enlarged.galaxies.andromeda.diameter).toBeCloseTo(compressed.galaxies.andromeda.diameter);
+  expect(enlarged.galaxies.andromeda.diameter).toBeCloseTo(limited.galaxies.andromeda.diameter);
   assertEnvelopes(enlarged);
   await setScale(page, 'Galaxy separation', 0.5);
   await page.locator('#time').focus();

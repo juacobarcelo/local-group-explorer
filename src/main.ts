@@ -112,6 +112,14 @@ showMotion.onchange = () => {
   sceneDirty = true;
 };
 
+const limitSizes = element<HTMLInputElement>('#limit-sizes');
+limitSizes.onchange = updateScale;
+const names = element<HTMLButtonElement>('#map-names');
+names.onclick = () => {
+  labels.hidden = !labels.hidden;
+  names.setAttribute('aria-pressed', String(!labels.hidden));
+  sceneDirty = true;
+};
 const labels = element('#labels');
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const leaders = document.createElementNS(svgNamespace, 'svg');
@@ -249,7 +257,8 @@ function updatePositions() {
     ? gravityPositionAt(galaxy.id, timeMyr, separation) : positionAt(galaxy, timeMyr, separation));
   const size = Number(sizeSlider.value);
   const diameters = logSizeButton.getAttribute('aria-pressed') === 'true'
-    ? cappedDiameters(centers, activeEntries.map(entry => entry.logDiameter), size)
+    ? (limitSizes.checked ? cappedDiameters(centers, activeEntries.map(entry => entry.logDiameter), size)
+      : activeEntries.map(entry => entry.logDiameter * size))
     : activeEntries.map(({galaxy}) => galaxy.diameterKpc * size);
   activeEntries.forEach(({ galaxy, model }, i) => {
     model.position.fromArray(centers[i]);
@@ -496,6 +505,7 @@ logSizeButton.onclick = () => {
   const active = logSizeButton.getAttribute('aria-pressed') !== 'true';
   logSizeButton.setAttribute('aria-pressed', String(active));
   element('#log-size-note').hidden = !active;
+  labels.classList.toggle('enlarged', active);
   entries.forEach(({ model }) => emphasizeSubpixelStars(model, active));
   updateScale();
 };
@@ -576,6 +586,7 @@ function resize() {
 }
 const projected = new THREE.Vector3();
 function drawLabels() {
+  if (labels.hidden) return;
   const width = canvas.clientWidth, height = canvas.clientHeight;
   const used: {x:number,y:number,w:number}[] = [];
   for (const entry of labelOrder) {
