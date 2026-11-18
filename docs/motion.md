@@ -14,6 +14,19 @@ The data come from systemic radial velocities and proper motions in the Local Vo
 
 Andromeda I, M32 and NGC 205 have radial velocities in the compilation but lack both sky components there. Their centers stay at their catalog coordinates. A stationary icon in this case represents incomplete data. The Milky Way has a separate reason for staying at the origin. Its center defines the reference frame. Distances to held objects at other dates inherit that approximation.
 
+## Seeing the center motion
+
+Enable **Show motion arrows**, choose **Since present day** and move the timeline. Each arrow starts at the galaxy's present-day center and follows its displacement to the selected epoch. Choose **50×** to make a short displacement easier to see. Galaxy centers, elapsed time and the distance on the selected galaxy's card keep their physical values. **Next 10 million years** displays the forward velocity vector from the selected epoch.
+
+The table samples the simulator at the present epoch and ten million years later. The distance change is the signed change in separation from the Milky Way center. The three-dimensional displacement includes sideways motion. The last column gives the angle turned by a modeled star at the reference radius in the rotation table.
+
+| Galaxy | Present separation (kpc) | Change in separation (kpc) | Three-dimensional displacement (kpc) | Reference star rotation (degrees) |
+| --- | ---: | ---: | ---: | ---: |
+| Andromeda | 786.98 | −1.16 | 1.20 | 12.1 |
+| Large Magellanic Cloud | 50.41 | +0.77 | 3.43 | 19.3 |
+
+Andromeda's change in separation amounts to about 0.15% of its present distance in this model. An overview that fits the whole Local Group compresses this shift to roughly a pixel on many desktop screens. The Milky Way satellite view and magnified arrows make smaller displacements visible over the same physical time interval.
+
 ## Internal rotation
 
 The modeled stars in four galaxies turn around their local disk normal. All stars at a given disk radius rotate by the same angle. Inner tracers sweep larger angles than outer ones. For radius R the angular speed scales as 1 / sqrt(R² + a²), normalized at the reference radius in the table. The core scale a is one third of that radius, an illustrative assumption that keeps the center finite and produces an approximately flat circular-speed curve at larger radii. The stars move within the existing disk plane. The reconstruction omits independent arm-pattern speeds, bar dynamics, orbital dispersion and tidal changes.

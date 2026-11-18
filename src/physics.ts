@@ -10,6 +10,22 @@ export function logarithmicDiameter(diameterKpc: number, largestDiameterKpc: num
   return largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
 }
 
+// Divide the available space in proportion to each galaxy's unscaled display size.
+export function cappedDiameters(centers: readonly Coordinates[], baseDiameters: readonly number[], sizeScale: number): number[] {
+  const diameters = baseDiameters.map(diameter => diameter * sizeScale)
+  for (let i = 0; i < centers.length; i++) {
+    const [x, y, z] = centers[i]
+    for (let j = i + 1; j < centers.length; j++) {
+      const other = centers[j]
+      const distance = Math.hypot(x - other[0], y - other[1], z - other[2])
+      const pairScaleLimit = 2 * 0.95 * distance / (baseDiameters[i] + baseDiameters[j])
+      diameters[i] = Math.min(diameters[i], baseDiameters[i] * pairScaleLimit)
+      diameters[j] = Math.min(diameters[j], baseDiameters[j] * pairScaleLimit)
+    }
+  }
+  return diameters
+}
+
 /** Equatorial J2000 coordinates with celestial north up and increasing RA toward -Z. */
 export function skyDirection(raDeg: number, decDeg: number): Coordinates {
   const ra = radians(raDeg)

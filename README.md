@@ -22,13 +22,13 @@ Open the local address printed by Vite. To build and serve the production versio
 | Inspect the model | Choose **Observed view** or **Edge-on view** in the galaxy card. |
 | Show the reference plane | Enable **Show reference plane** to draw a grid through the centers of the Milky Way, Andromeda and Triangulum. |
 | Inspect the group from two directions | Choose **Top view** to see the triangle, or **Edge-on plane view** to see the two Magellanic Clouds on the same side of the grid. Drag to change your viewing angle. |
-| Explore close companions | Select **Milky Way satellites**, then enable **Show motion arrows**. Each arrow spans ten million years of motion at the adopted velocity. |
+| Explore close companions | Select **Milky Way satellites**, then enable **Show motion arrows**. Choose **Since present day** and set **Arrow length** to **50×** to see small displacements while scrubbing time. The distance in the selected galaxy’s card stays in physical units. |
 | Move through time | Drag **Simulation time**, play forward or backward, pause, or choose **Return to present**. |
 | Zoom | Scroll the mouse wheel. |
 | Fly freely | Use W/S to move forward/back, A/D for sideways movement and Q/E to descend/rise. Drag to look around. |
 | Return to the group | Choose **Overview** or press Home with the map focused. |
 
-At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. The size slider still multiplies all displayed diameters. Switch back to linear sizes to compare their physical proportions.
+At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. In logarithmic mode each galaxy grows until its three-dimensional envelope reaches its allotted space. Nearby pairs share 95% of the distance between centers in proportion to their logarithmic sizes. The limits follow the epoch and separation settings. Two galaxies can still line up on the screen when one lies behind the other. Switch back to linear sizes to compare their physical proportions.
 
 The reference plane follows the centers of the Milky Way, Andromeda and Triangulum at the selected time. Dragging to orbit changes only the camera.
 

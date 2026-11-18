@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { galaxies, type Galaxy } from './catalog';
-import { logarithmicDiameter, observerDirection } from './physics';
+import { cappedDiameters, logarithmicDiameter, observerDirection } from './physics';
 import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel } from './models';
 import { createReferencePlane } from './plane';
@@ -48,6 +48,7 @@ function setCameraUp(up: THREE.Vector3) {
 
 const logSizeButton = element<HTMLButtonElement>('#log-size');
 const largestDiameterKpc = Math.max(...galaxies.map(galaxy => galaxy.diameterKpc));
+const logDiameters = galaxies.map(galaxy => logarithmicDiameter(galaxy.diameterKpc, largestDiameterKpc));
 const sizeSlider = element<HTMLInputElement>('#size');
 const separationSlider = element<HTMLInputElement>('#separation');
 const timeSlider = element<HTMLInputElement>('#time');
@@ -71,13 +72,17 @@ showPlane.onchange = () => {
   plane.grid.visible = showPlane.checked;
   sceneDirty = true;
 };
-element('#vector-horizon').textContent = String(timeLimitMyr);
+const arrowPeriod = element<HTMLSelectElement>('#arrow-period');
+const arrowScale = element<HTMLSelectElement>('#arrow-scale');
+const arrowCaption = element('#arrow-caption');
 const showMotion = element<HTMLInputElement>('#show-motion');
 const vectors = new THREE.Group();
 vectors.visible = false;
 scene.add(vectors);
 showMotion.onchange = () => {
   vectors.visible = showMotion.checked;
+  element('#motion-options').hidden = !showMotion.checked;
+  updateMotionArrows();
   sceneDirty = true;
 };
 
@@ -122,17 +127,52 @@ const entries = galaxies.map(galaxy => {
   const leader = document.createElementNS(svgNamespace, 'line');
   leaders.append(leader);
   labels.append(marker, label);
-  const displacement = new THREE.Vector3(...positionAt(galaxy, timeLimitMyr)).sub(
-    new THREE.Vector3(...positionAt(galaxy, 0)),
-  );
+  const present = new THREE.Vector3(...positionAt(galaxy, 0));
+  const displacement = new THREE.Vector3(...positionAt(galaxy, timeLimitMyr)).sub(present);
   let arrow: THREE.ArrowHelper | undefined;
   const length = displacement.length();
   if (length > 0) {
     arrow = new THREE.ArrowHelper(displacement.normalize(), model.position, length, 0x76dabf, length * 0.23, length * 0.12);
     vectors.add(arrow);
   }
-  return { galaxy, model, button, label, marker, leader, arrow, labelWidth: 0 };
+  return { galaxy, model, button, label, marker, leader, arrow, present, labelWidth: 0 };
 });
+function updateMotionArrows() {
+  if (!vectors.visible) return;
+  const elapsed = arrowPeriod.value === 'elapsed';
+  const scale = Number(arrowScale.value);
+  const separation = Number(separationSlider.value);
+  const timeFraction = elapsed ? timeMyr / timeLimitMyr : 1;
+  for (const { model, present, arrow } of entries) {
+    if (!arrow) continue;
+    if (elapsed) arrow.position.copy(present).multiplyScalar(separation);
+    else arrow.position.copy(model.position);
+    arrow.visible = timeFraction !== 0;
+    arrow.scale.setScalar(timeFraction * separation * scale);
+  }
+}
+function updateArrowCaption() {
+  arrowCaption.textContent = arrowPeriod.value === 'elapsed'
+    ? 'Arrows start at present-day centers and grow as you move the timeline. The scale applies only to arrow lengths.'
+    : 'Arrows start at the selected epoch and show 10 million years at the adopted velocity. The scale applies only to arrow lengths.';
+}
+updateArrowCaption();
+arrowPeriod.onchange = arrowScale.onchange = () => {
+  updateArrowCaption();
+  updateMotionArrows();
+  sceneDirty = true;
+};
+
+let distanceReadout: HTMLElement | undefined;
+function updateDistanceReadout() {
+  if (!selected || !distanceReadout) return;
+  const distance = Math.hypot(...positionAt(selected, timeMyr));
+  const original = Math.hypot(...positionAt(selected, 0));
+  const delta = distance - original;
+  distanceReadout.textContent = 'Distance from Milky Way center · ' + distance.toFixed(2) + ' kpc'
+    + (delta === 0 ? '' : ' (' + (delta > 0 ? '+' : '−') + Math.abs(delta).toFixed(2) + ' kpc since present day)');
+}
+
 let labelOrder = entries;
 element('#catalog-count').textContent = String(entries.length);
 const search = element<HTMLInputElement>('#catalog-search');
@@ -177,14 +217,18 @@ function updatePositions() {
   const separation = Number(separationSlider.value);
   const previous = selected && models.get(selected.id)!.position.clone();
   const previousPlane = plane.grid.quaternion.clone();
-  for (const { galaxy, model, arrow } of entries) {
-    model.position.fromArray(positionAt(galaxy, timeMyr, separation));
+  const centers = entries.map(({galaxy}) => positionAt(galaxy, timeMyr, separation));
+  const size = Number(sizeSlider.value);
+  const diameters = logSizeButton.getAttribute('aria-pressed') === 'true'
+    ? cappedDiameters(centers, logDiameters, size)
+    : entries.map(({galaxy}) => galaxy.diameterKpc * size);
+  entries.forEach(({ galaxy, model }, i) => {
+    model.position.fromArray(centers[i]);
+    model.scale.setScalar(diameters[i]);
     model.children[0].rotation.z = spinAt(galaxy, timeMyr);
-    if (arrow) {
-      arrow.position.copy(model.position);
-      arrow.scale.setScalar(separation);
-    }
-  }
+  });
+  updateMotionArrows();
+  updateDistanceReadout();
   plane.update(models.get('milky-way')!.position, models.get('andromeda')!.position, models.get('triangulum')!.position);
   if (mode === 'orbit' && selected && previous) {
     const shift = models.get(selected.id)!.position.clone().sub(previous);
@@ -200,11 +244,6 @@ function updatePositions() {
 }
 function updateScale() {
   const size = Number(sizeSlider.value);
-  const logarithmic = logSizeButton.getAttribute('aria-pressed') === 'true';
-  for (const { galaxy, model } of entries) {
-    const diameter = logarithmic ? logarithmicDiameter(galaxy.diameterKpc, largestDiameterKpc) : galaxy.diameterKpc;
-    model.scale.setScalar(diameter * size);
-  }
   updatePositions();
   if (mode === 'overview') refitGroup();
   element('#size-value').textContent = size + '×';
@@ -312,12 +351,14 @@ function select(galaxy: Galaxy) {
   });
   const panel = element('#details');
   panel.hidden = false;
-  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
+  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p><p id="mw-separation"></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
   panel.querySelector('h2')!.textContent = galaxy.name;
   const brightness = galaxy.absoluteMagnitudeV;
   panel.querySelector('.measure')!.textContent = 'Adopted diameter · ' + galaxy.diameterKpc.toLocaleString('en-US') + ' kpc'
     + ' · Catalog distance from Sun ' + galaxy.distanceKpc.toLocaleString('en-US') + ' kpc'
     + (brightness === undefined ? '' : ' · Absolute V magnitude ' + brightness);
+  distanceReadout = element('#mw-separation');
+  updateDistanceReadout();
   const motion = motionInfo(galaxy);
   const motionNotes = panel.querySelectorAll('.motion p');
   motionNotes[0].textContent = 'Center motion · ' + motion.translation;
@@ -352,7 +393,7 @@ sizeSlider.oninput = separationSlider.oninput = updateScale;
 const keys = new Set<string>();
 const flightKeys = ['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE'];
 window.addEventListener('keydown', event => {
-  if (help.open || event.ctrlKey || event.altKey || event.metaKey || event.target instanceof HTMLInputElement) return;
+  if (help.open || event.ctrlKey || event.altKey || event.metaKey || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
   if (event.code === 'Home') {
     event.preventDefault();
     overview();
@@ -478,9 +519,18 @@ renderer.setAnimationLoop(now => {
   const kpc = 82 * 2 * camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) / canvas.clientHeight;
   ruler.textContent = kpc.toLocaleString('en-US',{maximumSignificantDigits:2})+' kpc';
 });
+function selectedMotionArrow() {
+  const arrow = entries.find(entry => entry.galaxy === selected)?.arrow;
+  if (!vectors.visible || !arrow?.visible) return null;
+  return {
+    start: arrow.getWorldPosition(new THREE.Vector3()).toArray(),
+    end: arrow.cone.getWorldPosition(new THREE.Vector3()).toArray()
+  };
+}
 Object.assign(window,{
   explorerState: () => ({
     timeMyr, playback, view, velocityVectorsVisible: vectors.visible,
+    motionArrowPeriod: arrowPeriod.value, motionArrowScale: Number(arrowScale.value), selectedArrow: selectedMotionArrow(),
     planeNormal: plane.normal.toArray(), planeVisible: plane.grid.visible,
     spins: Object.fromEntries(entries.map(({galaxy, model}) => [galaxy.id, model.children[0].rotation.z])),
     selected: selected?.id ?? null, mode, camera: camera.position.toArray(), target: controls.target.toArray(),

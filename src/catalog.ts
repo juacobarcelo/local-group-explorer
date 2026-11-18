@@ -30,16 +30,16 @@ const brightGalaxies: Galaxy[] = [
     id: 'milky-way', name: 'Milky Way', classification: 'Barred spiral',
     ...galacticCenter, diameterKpc: lightYearsToKpc(100000),
     sizeNote: 'Approximate luminous disk diameter of 100,000 light-years.',
-    modelNote: 'A warm elongated bar crosses a thin disk of blue spiral arms. Arm paths and stellar colors are schematic. The disk follows the Galactic plane.',
+    modelNote: 'A warm elongated bar crosses a thin disk of blue spiral arms. Arm paths and stellar colors are schematic. The disk follows the Galactic plane. The bar’s near end points 30° from the center–Sun line toward positive Galactic longitude.',
     model: 'barred', orientation: 'galactic-plane',
-    sources: [milkyWaySize, { title: 'Bar and arms · NASA/JPL-Caltech', url: 'https://science.nasa.gov/resource/the-milky-way-galaxy/' },
+    sources: [milkyWaySize, { title: 'Long bar angle · Wegg et al. (2015)', url: 'https://academic.oup.com/mnras/article/450/4/4050/989881' }, { title: 'Bar and arms · NASA/JPL-Caltech', url: 'https://science.nasa.gov/resource/the-milky-way-galaxy/' },
       { title: 'Distance to the Galactic center · GRAVITY Collaboration (2019)', url: 'https://doi.org/10.1051/0004-6361/201935656' }]
   },
   {
     id: 'andromeda', name: 'Andromeda', classification: 'Spiral galaxy',
     raDeg: 10.6847, decDeg: 41.269, distanceKpc: 783, diameterKpc: 41,
     sizeNote: 'Bright optical disk spanning about 3° on the sky, or roughly 41 kpc at the adopted distance.',
-    modelNote: 'A warm central bulge rises above a thin, inclined disk. Broken blue rings and gaps trace the bright arms and dust lanes. Individual dust clouds and stars are reconstructed.',
+    modelNote: 'A warm central bulge rises above a thin, inclined disk. Broken blue rings and gaps trace the bright arms and dust lanes. The northwest disk is closer to us. The ring paths, dust lanes and individual stars are schematic.',
     model: 'ringed', orientation: { inclinationDeg: 77, positionAngleDeg: 38 },
     sources: [{ title: 'Hubble PHAT · resolved-star photometry and image mosaics', url: 'https://archive.stsci.edu/hlsp/phat' },
       { title: 'Visible-light reference · © Robert Gendler, via NASA APOD', url: 'https://science.nasa.gov/image-article/apod-2009-may-10-m31-the-andromeda-galaxy/' },
@@ -49,7 +49,7 @@ const brightGalaxies: Galaxy[] = [
     id: 'triangulum', name: 'Triangulum', classification: 'Spiral galaxy',
     raDeg: 23.4621, decDeg: 30.6599, distanceKpc: 809, diameterKpc: lightYearsToKpc(50000),
     sizeNote: 'Approximate bright stellar disk, taken as half the Milky Way’s adopted diameter.',
-    modelNote: 'Loose blue arms, scattered pink star-forming regions and a small core trace its patchy optical disk. Exact arm branches and colors are illustrative.',
+    modelNote: 'Loose blue arms, scattered pink star-forming regions and a small core trace its patchy optical disk. The west side of its disk is closer to us. The arm positions, branches and colors are illustrative.',
     model: 'open-spiral', orientation: { inclinationDeg: 54, positionAngleDeg: 23 },
     sources: [{ title: 'Hubble PHATTER · multiband stellar photometry', url: 'https://archive.stsci.edu/hlsp/phatter' },
       { title: 'Optical disk and relative size · NASA Hubble Messier catalog', url: 'https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-33/' }, distances, spiralAngles]
@@ -58,7 +58,7 @@ const brightGalaxies: Galaxy[] = [
     id: 'large-magellanic-cloud', name: 'Large Magellanic Cloud', hostId: 'milky-way', classification: 'Magellanic irregular',
     raDeg: 80.8942, decDeg: -69.7561, distanceKpc: 51, diameterKpc: lightYearsToKpc(14000),
     sizeNote: 'Approximate width of the bright visible body, 14,000 light-years in the ESO reference.',
-    modelNote: 'An off-center stellar bar and uneven blue knots outline its lopsided body. The adopted disk tilt follows red-giant measurements. Individual knots and depth are illustrative.',
+    modelNote: 'An off-center stellar bar and uneven blue knots outline its lopsided body. The adopted disk tilt follows red-giant measurements, with the northeast side closer to us. Individual knots and depth are illustrative.',
     model: 'bar-cloud', orientation: { inclinationDeg: 34.7, positionAngleDeg: 122.5 },
     sources: [cloudPhoto, cloudStructure, distances, { title: 'Viewing angles · van der Marel & Cioni (2001)', url: 'https://arxiv.org/abs/astro-ph/0105339' }]
   },

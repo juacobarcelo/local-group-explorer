@@ -21,7 +21,15 @@
         <h2>Neighborhood</h2>
         <div class="actions"><button id="satellites">Milky Way satellites</button></div>
         <label><input id="show-motion" type="checkbox"> Show motion arrows</label>
-        <p>Each arrow spans <span id="vector-horizon">10</span> million years at the adopted velocity relative to the Milky Way.</p>
+        <div id="motion-options" hidden>
+          <label>Arrow interval <select id="arrow-period">
+            <option value="forecast">Next 10 million years</option><option value="elapsed">Since present day</option>
+          </select></label>
+          <label>Arrow length <select id="arrow-scale">
+            <option value="1">1×</option><option value="10">10×</option><option value="50">50×</option>
+          </select></label>
+          <p id="arrow-caption"></p>
+        </div>
       </section>
       <section class="plane-panel">
         <h2>Reference plane</h2>
@@ -34,7 +42,7 @@
         <label for="size">Galaxy size <output id="size-value" for="size">1×</output></label>
         <input id="size" aria-label="Galaxy size" type="range" min="0.5" max="8" value="1" step="0.25">
         <button id="log-size" type="button" aria-pressed="false">Logarithmic sizes</button>
-        <p id="log-size-note" hidden>Smaller galaxies are enlarged relative to the largest galaxy. The slider scales all displayed sizes.</p>
+        <p id="log-size-note" hidden>Smaller galaxies are enlarged. Each stops growing at its local limit to keep a gap between neighboring galaxies in 3D.</p>
         <label for="separation">Galaxy separation <output id="separation-value" for="separation">1×</output></label>
         <input id="separation" aria-label="Galaxy separation" type="range" min="0.25" max="2" value="1" step="0.25">
       </section>

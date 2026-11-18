@@ -10,6 +10,7 @@ interface SceneState {
   size: number;
   separation: number;
   planeVisible: boolean;
+  selectedArrow: { start: number[]; end: number[] } | null;
   timeMyr: number;
   playback: number;
   velocityVectorsVisible: boolean;
@@ -225,15 +226,55 @@ test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   const compressed = await readScene(page);
   expect(compressed.galaxies.m32.diameter).toBeGreaterThan(physical.galaxies.m32.diameter * 2);
-  expect(compressed.galaxies.andromeda.diameter).toBeCloseTo(physical.galaxies.andromeda.diameter);
+  const assertEnvelopes = (state: SceneState) => {
+    const galaxies = Object.values(state.galaxies);
+    for (let i = 0; i < galaxies.length; i++) {
+      for (const other of galaxies.slice(i + 1)) {
+        const galaxy = galaxies[i];
+        expect((galaxy.diameter + other.diameter) / 2)
+          .toBeLessThanOrEqual(0.95 * distance(galaxy.center, other.center) + 1e-8);
+      }
+    }
+  };
   for (const [id, galaxy] of Object.entries(physical.galaxies)) {
     expect(compressed.galaxies[id].center).toEqual(galaxy.center);
   }
+  assertEnvelopes(compressed);
   await setScale(page, 'Galaxy size', 2);
-  expect((await readScene(page)).galaxies.m32.diameter).toBeCloseTo(compressed.galaxies.m32.diameter * 2);
+  const enlarged = await readScene(page);
+  expect(enlarged.galaxies.andromeda.diameter).toBeCloseTo(compressed.galaxies.andromeda.diameter);
+  assertEnvelopes(enlarged);
+  await setScale(page, 'Galaxy separation', 0.5);
+  await page.locator('#time').focus();
+  await page.locator('#time').press('End');
+  assertEnvelopes(await readScene(page));
   await toggle.click();
   const restored = await readScene(page);
   for (const [id, galaxy] of Object.entries(physical.galaxies)) {
     expect(restored.galaxies[id].diameter).toBeCloseTo(galaxy.diameter * 2);
   }
+});
+
+test('amplify elapsed displacement without moving the galaxy centers', async ({ page }) => {
+  await openAtlas(page);
+  await page.locator('[data-galaxy="andromeda"]').first().click();
+  await page.locator('#show-motion').check();
+  await page.locator('#arrow-period').selectOption('elapsed');
+  await page.locator('#time').focus();
+  await page.locator('#time').press('End');
+  const before = await readScene(page);
+  const arrow = before.selectedArrow!;
+  expect(distance(arrow.end, before.galaxies.andromeda.center)).toBeLessThan(1e-6);
+  const readout = await page.locator('#mw-separation').innerText();
+  await page.locator('#arrow-scale').selectOption('50');
+  const after = await readScene(page);
+  expect(after.galaxies).toEqual(before.galaxies);
+  expect(after.spins).toEqual(before.spins);
+  const from = new Vector3().fromArray(arrow.start);
+  const expanded = new Vector3().fromArray(arrow.end).sub(from).multiplyScalar(50).add(from);
+  expect(distance(after.selectedArrow!.end, expanded.toArray())).toBeLessThan(1e-5);
+  await expect(page.locator('#mw-separation')).toHaveText(readout);
+  await page.locator('#reset-time').click();
+  await expect(page.locator('#mw-separation')).not.toHaveText(readout);
+  expect((await readScene(page)).selectedArrow).toBeNull();
 });

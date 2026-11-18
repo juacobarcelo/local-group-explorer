@@ -28,6 +28,14 @@ All galaxy cards link to the observed optical field in the CDS Aladin sky atlas.
 - **WLM.** JWSTSTARS publishes Webb near-infrared imaging and photometric catalogs of individual stars. [JWSTSTARS](https://archive.stsci.edu/hlsp/jwststars)
 - **IC 1613.** The VLA LITTLE THINGS survey publishes neutral-hydrogen intensity and velocity products. [LITTLE THINGS](https://science.nrao.edu/science/surveys/littlethings/data/ic1613.html)
 
+## Present-day orientation
+
+**Observed view** looks along the catalog sightline with celestial north up and east to the left. Center coordinates and distances set the relative galaxy positions. Distances carry observational uncertainties. A disk's position angle measures its projected major axis east from north. Inclination measures its tilt from face-on. The catalog uses the direction along the line of nodes for which the nearer minor axis lies 90° earlier in position angle.
+
+- **Andromeda and Triangulum.** The adopted (inclination, position angle) pairs are (77°, 38°) and (54°, 23°). Andromeda's northwest side and Triangulum's western side tilt toward the observer. Measurements of proper motion support counterclockwise and clockwise sky rotation respectively. The models use one representative plane per galaxy. Warps, arm locations and spiral pattern speeds are unresolved here. [Dust in Andromeda](https://arxiv.org/abs/2407.05737) · [Triangulum gas kinematics](https://arxiv.org/abs/0707.2162) · [Gaia rotation measurements](https://arxiv.org/abs/1805.04079)
+- **Milky Way.** The pole sets the Galactic plane. The model adopts a 30° bar angle with its nearer end at positive Galactic longitude, within the 28–33° range measured by Wegg and colleagues. The four generated arms trail the adopted disk rotation. Their paths and their phase relative to the Sun are illustrative. [Milky Way bar measurements](https://academic.oup.com/mnras/article/450/4/4050/989881)
+- **Magellanic Clouds and dwarfs.** The adopted Large Cloud disk model has inclination 34.7° and node angle 122.5°. Its northeast side is closer. Its bar and knots are schematic. The Small Cloud's depth and tilt are illustrative. The projected flattening and position angles of the added dwarfs use their catalog measurements. [Large Cloud geometry](https://arxiv.org/abs/astro-ph/0105339)
+
 ## Visual references and reuse
 
 The models generate their own stellar light distributions from a repeatable random sequence. Point colors, individual concentrations, arm paths and depths are illustrative. The angular orientations and fitted structure in the catalog constrain each reconstruction. The reference photographs remain on their publishers’ sites.
@@ -43,7 +51,7 @@ Original galaxy model renderings are licensed under Creative Commons Attribution
 
 ![Two views of the Andromeda reconstruction, the Large Cloud's offset bar, and the Small Cloud's asymmetric wing](model-projections.webp)
 
-The four panels project the actual positions, colors and point widths from `createGalaxyModel`. An offline rasterizer used the Three.js perspective camera, catalog orientation and the point shader’s radial brightness profile. Each panel frames one galaxy individually. These images check the model geometry independently of browser rendering.
+These historical panels predate the correction of the near-side tilt for Andromeda and the Large Cloud. The four panels project the original positions, colors and point widths from `createGalaxyModel`. An offline rasterizer used the Three.js perspective camera, catalog orientation and the point shader’s radial brightness profile. Each panel frames one galaxy individually. These images check the model geometry independently of browser rendering.
 
 - **Andromeda from the observed direction.** The reconstruction and Gendler's reference both show an elongated disk around a warmer, thicker center. The model's bands are more regular and its dark gaps sharper than the mottled lanes in the photograph. [Reference photograph](https://science.nasa.gov/image-article/apod-2009-may-10-m31-the-andromeda-galaxy/)
 - **Andromeda edge-on.** Turning the camera to look along the major axis collapses the bands into a narrow disk while the central bulge still protrudes. Across all 22,000 generated points, the ratio of minor to major projected RMS width drops from 0.228 in the observed view to 0.067 edge-on. These dimensionless widths come from the principal axes of the projected positions.

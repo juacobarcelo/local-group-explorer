@@ -92,7 +92,9 @@ function orient(group: Group, galaxy: Galaxy) {
   let major: Vector3
   if (galaxy.orientation === 'galactic-plane') {
     normal = new Vector3(...skyDirection(192.85948, 27.12825))
-    major = new Vector3(...skyDirection(galaxy.raDeg, galaxy.decDeg)).projectOnPlane(normal).normalize()
+    // The bar's near end lies at positive Galactic longitude, about 30° from the Sun.
+    major = new Vector3(...observerDirection(galaxy)).projectOnPlane(normal).normalize()
+      .applyAxisAngle(normal, radians(-30))
   } else {
     const ra = radians(galaxy.raDeg)
     const line = new Vector3(...observerDirection(galaxy))
@@ -100,7 +102,8 @@ function orient(group: Group, galaxy: Galaxy) {
     const north = new Vector3(0, 1, 0).projectOnPlane(line).normalize()
     const angle = radians(galaxy.orientation.positionAngleDeg)
     major = north.multiplyScalar(Math.cos(angle)).addScaledVector(east, Math.sin(angle)).normalize()
-    normal = line.applyAxisAngle(major, radians(galaxy.orientation.inclinationDeg))
+    // Directed node angles in the catalog put the near side at PA minus 90 degrees.
+    normal = line.applyAxisAngle(major, -radians(galaxy.orientation.inclinationDeg))
   }
   group.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(major, normal.clone().cross(major), normal))
 }

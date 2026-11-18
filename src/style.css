@@ -530,6 +530,18 @@ dd {
   font-size: 13px;
 }
 
+#motion-options label {
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+#motion-options select {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px;
+}
+
 .plane-panel input {
   margin: 0;
   accent-color: var(--mint);
