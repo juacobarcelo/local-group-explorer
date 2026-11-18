@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090e17">
+  <title>Local Group Explorer</title>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-icon" aria-hidden="true">✧</span>Local Group Explorer</div>
+    <button id="help" aria-haspopup="dialog"><span class="key-icon">?</span> Controls</button>
+  </header>
+  <main>
+    <aside>
+      <section class="catalog"><h1>Galaxy catalog <span id="catalog-count"></span></h1>
+        <input type="search" id="catalog-search" aria-label="Search galaxies" placeholder="Search galaxies">
+        <div id="catalog"></div><p id="no-results" hidden>No matching galaxies.</p></section>
+      <section id="details" hidden></section>
+      <section class="plane-panel">
+        <h2>Neighborhood</h2>
+        <div class="actions"><button id="satellites">Milky Way satellites</button></div>
+        <label><input id="show-motion" type="checkbox"> Show motion arrows</label>
+        <div id="motion-options" hidden>
+          <label>Arrow interval <select id="arrow-period">
+            <option value="forecast">Next 10 million years</option><option value="elapsed">Since present day</option>
+          </select></label>
+          <label>Arrow length <select id="arrow-scale">
+            <option value="1">1×</option><option value="10">10×</option><option value="50">50×</option>
+          </select></label>
+          <p id="arrow-caption"></p>
+        </div>
+      </section>
+      <section class="plane-panel">
+        <h2>Reference plane</h2>
+        <p>Through the centers of the Milky Way, Andromeda and Triangulum.</p>
+        <label><input id="show-plane" type="checkbox"> Show reference plane</label>
+        <div class="actions"><button id="plane-top">Top view</button><button id="plane-edge">Edge-on plane view</button></div>
+      </section>
+      <section class="scale-panel">
+        <h2>Scene scale</h2>
+        <label for="size">Galaxy size <output id="size-value" for="size">1×</output></label>
+        <input id="size" aria-label="Galaxy size" type="range" min="0.5" max="8" value="1" step="0.25">
+        <button id="log-size" type="button" aria-pressed="false">Logarithmic sizes</button>
+        <p id="log-size-note" hidden>Smaller galaxies are enlarged. Each stops growing at its local limit to keep a gap between neighboring galaxies in 3D.</p>
+        <label for="separation">Galaxy separation <output id="separation-value" for="separation">1×</output></label>
+        <input id="separation" aria-label="Galaxy separation" type="range" min="0.25" max="2" value="1" step="0.25">
+      </section>
+    </aside>
+    <div class="stage">
+    <section class="viewport" aria-label="Interactive three-dimensional galaxy map">
+      <canvas id="sky" tabindex="0" aria-label="Galaxy map, use mouse and keyboard to explore"></canvas>
+      <div id="labels"></div>
+      <div class="viewport-top"><div><div class="eyebrow"><i></i> Visible light</div><h2 id="view-name">Local Group</h2></div><button id="overview">Overview</button></div>
+      <div class="viewport-bottom"><span id="mode">Overview</span><span class="ruler"><span id="distance"></span><i></i></span></div>
+      <div id="error" role="alert" hidden>This 3D view requires WebGL 2. Enable hardware acceleration in your browser and reload.</div>
+    </section>
+    <section class="timeline" aria-label="Simulation timeline">
+      <div class="timeline-title"><label for="time">Simulation time</label><output id="epoch" for="time">Present day</output></div>
+      <input id="time" type="range" value="0" step="0.01" min="-10" max="10">
+      <div class="time-actions">
+        <div class="transport">
+          <button id="play-backward" aria-label="Play backward" title="Play backward">◀</button>
+          <button id="pause-time" aria-label="Pause" title="Pause">Ⅱ</button>
+          <button id="play-forward" aria-label="Play forward" title="Play forward">▶</button>
+          <button id="reset-time">Return to present</button>
+        </div>
+        <span>1 million years per second</span>
+      </div>
+      <p>Short-term projection at constant velocity. Galaxies without an adopted velocity stay at their catalog positions.</p>
+    </section></div>
+  </main>
+  <dialog id="controls"><form method="dialog"><h2>Navigation controls</h2><dl>
+    <dt>Orbit</dt><dd>Drag in the map</dd><dt>Zoom</dt><dd>Scroll the wheel</dd><dt>Free flight</dt><dd>W A S D to move, Q E to descend or rise. Drag to look around.</dd>
+    <dt>Inspect</dt><dd>Select a galaxy, then choose Frame galaxy.</dd><dt>Overview</dt><dd>Press Home or choose Overview.</dd>
+  </dl><button>Close</button></form></dialog>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
