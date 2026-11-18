@@ -2,7 +2,7 @@
 
 ![Three matched pairs of Chromium screenshots showing Fornax, Carina and M32 before and after the change](dwarf-visibility.webp)
 
-Each pair is cropped from Chromium at the same camera position, orientation, field of view and viewport size. The ticks on the top and left edges locate the dwarf center. Each row has its own crop and display magnification. All six images use the present epoch, a 1440 × 900 CSS-pixel window at device scale 1, logarithmic sizes enabled, and size and separation at 1×. Labels were hidden in both versions. The previous version is commit `a84f196`.
+Each pair is cropped from Chromium at the same camera position, orientation, field of view and viewport size. The ticks on the top and left edges locate the dwarf center. Each row has its own crop and display magnification. All six images use the present epoch, a 1440 × 900 CSS-pixel window at device scale 1, logarithmic sizes enabled, and size and separation at 1×. Labels were hidden in both versions. The baseline is commit `a84f196`. The matched-camera comparison keeps its layout in both runs and changes the size and light rendering. The automated browser regression also exercises the updated application layout.
 
 | Target and camera | Projected envelope diameter, previous → updated (pixels) | Visible pixels attributable to the galaxy, previous → updated |
 | --- | ---: | ---: |

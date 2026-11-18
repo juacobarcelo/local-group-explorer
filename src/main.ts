@@ -6,7 +6,7 @@ import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel, emphasizeSubpixelStars } from './models';
 import { createReferencePlane } from './plane';
 import { gravityBodies, gravityPositionAt, gravityTimeLimitMyr, straightPositionAt } from './gravity';
-import { createGravityView } from './gravity-view';
+import { createGravityView, haloExtentInScaleRadii } from './gravity-view';
 import './style.css';
 
 function element<T extends HTMLElement>(selector: string) {
@@ -331,7 +331,7 @@ function fitGroup(sight: THREE.Vector3, upward: THREE.Vector3, anchorOnPlane: bo
   entries.forEach(({galaxy, model}) => {
     if (!model.visible || (view === 'mw-satellites' && galaxy.id !== 'milky-way' && galaxy.hostId !== 'milky-way')) return;
     const halo = useGravity && haloToggle.checked ? gravityBodies.find(body => body.id === galaxy.id) : undefined;
-    const radius = Math.max(model.scale.x / 2, halo ? halo.haloScaleKpc * Number(separationSlider.value) : 0);
+    const radius = Math.max(model.scale.x / 2, halo ? haloExtentInScaleRadii * halo.haloScaleKpc * Number(separationSlider.value) : 0);
     const center = new THREE.Vector3(model.position.dot(right), model.position.dot(up), model.position.dot(sight));
     bounds.expandByPoint(center.clone().addScalar(radius));
     bounds.expandByPoint(center.clone().subScalar(radius));
@@ -426,7 +426,11 @@ function refreshGravityLayers() {
     sceneDirty = true;
   }
 }
-haloToggle.onchange = pathToggle.onchange = refreshGravityLayers;
+haloToggle.onchange = () => {
+  refreshGravityLayers();
+  if (haloToggle.checked && mode === 'overview') refitGroup();
+};
+pathToggle.onchange = refreshGravityLayers;
 modelSelector.onchange = () => {
   useGravity = modelSelector.value === 'gravity';
   if (useGravity && !gravityView) {
@@ -623,7 +627,7 @@ Object.assign(window,{
     darkHalosVisible: Boolean(gravityView?.group.visible && gravityView.halos.visible),
     comparePaths: Boolean(gravityView?.group.visible && gravityView.paths.visible),
     haloRadii: Object.fromEntries((gravityView?.halos.children ?? []).map(halo =>
-      [halo.name, halo.getWorldScale(new THREE.Vector3()).x / 6])),
+      [halo.name, halo.getWorldScale(new THREE.Vector3()).x / (2 * haloExtentInScaleRadii)])),
     timeMyr, playback, view, velocityVectorsVisible: vectors.visible,
     motionArrowPeriod: arrowPeriod.value, motionArrowScale: Number(arrowScale.value), selectedArrow: selectedMotionArrow(),
     planeNormal: plane.normal.toArray(), planeVisible: plane.grid.visible,

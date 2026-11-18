@@ -1,8 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import { Vector3 } from 'three';
 
 interface GravityState {
   motionModel: string;
   timeMyr: number;
+  camera: number[];
+  target: number[];
   darkHalosVisible: boolean;
   comparePaths: boolean;
   haloRadii: Record<string, number>;
@@ -62,4 +65,29 @@ test('compare the Magellanic orbits and turn the dark halos on and off', async (
   expect(reset.galaxies).toEqual(today.galaxies);
   await page.locator('#motion-model').selectOption('linear');
   expect((await readScene(page)).galaxies).toEqual(catalog.galaxies);
+});
+
+test('fit the full Milky Way halo when enabled in the group overview', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => 'explorerState' in window);
+  await page.locator('#motion-model').selectOption('gravity');
+  await page.locator('#compare-paths').uncheck();
+  await page.locator('#overview').click();
+  await page.locator('#dark-halos').check();
+
+  const state = await readScene(page);
+  const eye = new Vector3().fromArray(state.camera);
+  const sight = new Vector3().fromArray(state.target).sub(eye).normalize();
+  const depth = new Vector3().fromArray(state.galaxies['milky-way'].center).sub(eye).dot(sight);
+  const sky = (await page.locator('#sky').boundingBox())!;
+  const radiusPx = 3 * state.haloRadii['milky-way'] * sky.height / (2 * depth * Math.tan(21 * Math.PI / 180));
+  const center = await page.getByRole('button', { name: 'Select Milky Way on map', includeHidden: true })
+    .evaluate(label => {
+      const marker = label.previousElementSibling!.getBoundingClientRect();
+      return { x: marker.x + marker.width / 2, y: marker.y + marker.height / 2 };
+    });
+  expect(center.x - radiusPx).toBeGreaterThanOrEqual(sky.x);
+  expect(center.y - radiusPx).toBeGreaterThanOrEqual(sky.y);
+  expect(center.x + radiusPx).toBeLessThanOrEqual(sky.x + sky.width);
+  expect(center.y + radiusPx).toBeLessThanOrEqual(sky.y + sky.height);
 });

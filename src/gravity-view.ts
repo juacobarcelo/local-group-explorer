@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { gravityBodies, gravityPositionAt, gravityTimeLimitMyr, straightPositionAt } from './gravity';
 
+export const haloExtentInScaleRadii = 3;
+
 // A spherical Plummer halo projects on the sky as (1 + R²/a²)^−2.
 // Normalize the central brightness of each halo to make all three readable.
 function makeHaloTexture() {
@@ -10,16 +12,16 @@ function makeHaloTexture() {
   const pixels = ctx.createImageData(256, 256);
   for (let y = 0; y < 256; y++) {
     for (let x = 0; x < 256; x++) {
-      const r = Math.hypot(x - 127.5, y - 127.5) * 3 / 128;
+      const r = Math.hypot(x - 127.5, y - 127.5) * haloExtentInScaleRadii / 128;
       const i = 4 * (256 * y + x);
-      pixels.data.set([146, 139, 255, r < 3 ? 180 / (1 + r * r) ** 2 : 0], i);
+      pixels.data.set([146, 139, 255, r < haloExtentInScaleRadii ? 180 / (1 + r * r) ** 2 : 0], i);
     }
   }
   ctx.putImageData(pixels, 0, 0);
   ctx.strokeStyle = 'rgba(171,163,255,0.75)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(128, 128, 128 / 3, 0, Math.PI * 2);
+  ctx.arc(128, 128, 128 / haloExtentInScaleRadii, 0, Math.PI * 2);
   ctx.stroke();
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -40,7 +42,7 @@ export function createGravityView() {
   for (const body of gravityBodies) {
     const halo = new THREE.Sprite(material);
     halo.name = body.id;
-    halo.scale.setScalar(6 * body.haloScaleKpc);
+    halo.scale.setScalar(2 * haloExtentInScaleRadii * body.haloScaleKpc);
     halos.add(halo);
     // In the Milky Way frame its own center stays at the origin on both tracks.
     if (body.id === 'milky-way') continue;
