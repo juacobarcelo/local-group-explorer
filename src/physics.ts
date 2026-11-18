@@ -6,11 +6,12 @@ export const lightYearsPerKpc = 3261.56
 export const lightYearsToKpc = (lightYears: number) => lightYears / lightYearsPerKpc
 
 export function logarithmicDiameter(diameterKpc: number, largestDiameterKpc: number): number {
-  const contrast = 100
-  return largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
+  // A wide log range keeps the faintest dwarfs legible in a group-wide view.
+  const contrast = 10000
+  return 3.5 * largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
 }
 
-// Divide the available space in proportion to each galaxy's unscaled display size.
+// Meet halfway between neighboring centers. Each side keeps a fixed envelope as the slider increases.
 export function cappedDiameters(centers: readonly Coordinates[], baseDiameters: readonly number[], sizeScale: number): number[] {
   const diameters = baseDiameters.map(diameter => diameter * sizeScale)
   for (let i = 0; i < centers.length; i++) {
@@ -18,9 +19,9 @@ export function cappedDiameters(centers: readonly Coordinates[], baseDiameters: 
     for (let j = i + 1; j < centers.length; j++) {
       const other = centers[j]
       const distance = Math.hypot(x - other[0], y - other[1], z - other[2])
-      const pairScaleLimit = 2 * 0.95 * distance / (baseDiameters[i] + baseDiameters[j])
-      diameters[i] = Math.min(diameters[i], baseDiameters[i] * pairScaleLimit)
-      diameters[j] = Math.min(diameters[j], baseDiameters[j] * pairScaleLimit)
+      const diameterLimit = 0.95 * distance
+      diameters[i] = Math.min(diameters[i], diameterLimit)
+      diameters[j] = Math.min(diameters[j], diameterLimit)
     }
   }
   return diameters

@@ -3,13 +3,31 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { galaxies, type Galaxy } from './catalog';
 import { cappedDiameters, logarithmicDiameter, observerDirection } from './physics';
 import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
-import { createGalaxyModel } from './models';
+import { createGalaxyModel, emphasizeSubpixelStars } from './models';
 import { createReferencePlane } from './plane';
+import { gravityBodies, gravityPositionAt, gravityMassSource, dwarfMassSource, gravityTimeLimitMyr } from './gravity';
+import { createGravityView, haloExtentInScaleRadii } from './gravity-view';
 import './style.css';
 
 function element<T extends HTMLElement>(selector: string) {
   return document.querySelector<T>(selector)!;
 }
+const menuButton = element<HTMLButtonElement>('#menu-button');
+const menu = element('#explorer-menu');
+const narrowScreen = window.matchMedia('(max-width: 550px)');
+function showMenu(open: boolean) {
+  menu.hidden = !open;
+  menuButton.setAttribute('aria-expanded', String(open));
+}
+showMenu(!narrowScreen.matches);
+narrowScreen.addEventListener('change', () => showMenu(!narrowScreen.matches));
+menuButton.onclick = () => showMenu(menu.hidden);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && narrowScreen.matches && !menu.hidden && !document.querySelector('dialog[open]')) {
+    showMenu(false);
+    menuButton.focus();
+  }
+});
 const canvas = element<HTMLCanvasElement>('#sky');
 const help = element<HTMLDialogElement>('#controls');
 element('#help').onclick = () => help.showModal();
@@ -48,14 +66,24 @@ function setCameraUp(up: THREE.Vector3) {
 
 const logSizeButton = element<HTMLButtonElement>('#log-size');
 const largestDiameterKpc = Math.max(...galaxies.map(galaxy => galaxy.diameterKpc));
-const logDiameters = galaxies.map(galaxy => logarithmicDiameter(galaxy.diameterKpc, largestDiameterKpc));
 const sizeSlider = element<HTMLInputElement>('#size');
 const separationSlider = element<HTMLInputElement>('#separation');
 const timeSlider = element<HTMLInputElement>('#time');
 timeSlider.min = String(-timeLimitMyr);
 timeSlider.max = String(timeLimitMyr);
 const epoch = element<HTMLOutputElement>('#epoch');
+const modelSelector = element<HTMLSelectElement>('#motion-model');
+const haloToggle = element<HTMLInputElement>('#dark-halos');
+const pathToggle = element<HTMLInputElement>('#compare-paths');
+const gravityIds = new Set<string>(gravityBodies.map(body => body.id));
+const gravitySeparation = element('#gravity-separation');
+const gravityRateMyrPerSecond = 100;
+const timelineGuide = element('#time-guide');
+const linearGuide = timelineGuide.textContent;
+let useGravity = false;
+let gravityView: ReturnType<typeof createGravityView> | undefined;
 let timeMyr = 0;
+function currentTimeLimit() { return useGravity ? gravityTimeLimitMyr : timeLimitMyr; }
 let playback: -1 | 0 | 1 = 0;
 let view: 'group' | 'mw-satellites' | 'plane-top' | 'plane-edge' | 'galaxy' | 'flight' = 'group';
 let selected: Galaxy | undefined;
@@ -86,6 +114,14 @@ showMotion.onchange = () => {
   sceneDirty = true;
 };
 
+const limitSizes = element<HTMLInputElement>('#limit-sizes');
+limitSizes.onchange = updateScale;
+const names = element<HTMLButtonElement>('#map-names');
+names.onclick = () => {
+  labels.hidden = !labels.hidden;
+  names.setAttribute('aria-pressed', String(!labels.hidden));
+  sceneDirty = true;
+};
 const labels = element('#labels');
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const leaders = document.createElementNS(svgNamespace, 'svg');
@@ -135,7 +171,8 @@ const entries = galaxies.map(galaxy => {
     arrow = new THREE.ArrowHelper(displacement.normalize(), model.position, length, 0x76dabf, length * 0.23, length * 0.12);
     vectors.add(arrow);
   }
-  return { galaxy, model, button, label, marker, leader, arrow, present, labelWidth: 0 };
+  const logDiameter = logarithmicDiameter(galaxy.diameterKpc, largestDiameterKpc);
+  return { galaxy, model, button, label, marker, leader, arrow, present, logDiameter, labelWidth: 0 };
 });
 function updateMotionArrows() {
   if (!vectors.visible) return;
@@ -165,8 +202,12 @@ arrowPeriod.onchange = arrowScale.onchange = () => {
 
 let distanceReadout: HTMLElement | undefined;
 function updateDistanceReadout() {
+  if (useGravity) {
+    const distance = Math.hypot(...gravityPositionAt('andromeda', timeMyr));
+    gravitySeparation.textContent = 'Milky Way–Andromeda · ' + distance.toFixed(1) + ' kpc';
+  }
   if (!selected || !distanceReadout) return;
-  const distance = Math.hypot(...positionAt(selected, timeMyr));
+  const distance = Math.hypot(...(useGravity ? gravityPositionAt(selected.id, timeMyr) : positionAt(selected, timeMyr)));
   const original = Math.hypot(...positionAt(selected, 0));
   const delta = distance - original;
   distanceReadout.textContent = 'Distance from Milky Way center · ' + distance.toFixed(2) + ' kpc'
@@ -180,10 +221,10 @@ search.oninput = () => {
   const term = search.value.trim().toLowerCase();
   let count = 0;
   entries.forEach(({ galaxy, button }) => {
-    button.hidden = !galaxy.name.toLowerCase().includes(term);
+    button.hidden = (useGravity && !gravityIds.has(galaxy.id)) || !galaxy.name.toLowerCase().includes(term);
     if (!button.hidden) count++;
   });
-  element('#catalog-count').textContent = term ? count + ' / ' + entries.length : String(count);
+  element('#catalog-count').textContent = term ? count + ' / ' + (useGravity ? gravityIds.size : entries.length) : String(count);
   element('#no-results').hidden = count > 0;
 };
 const starCanvas = document.createElement('canvas');
@@ -210,26 +251,30 @@ function setMode(value: typeof mode) {
   sceneDirty = true;
   if (value === 'flight' || value === 'orbit') view = value === 'orbit' ? 'galaxy' : 'flight';
   element('#mode').textContent = {overview: 'Overview', orbit: 'Orbit', flight: 'Free flight'}[value];
-  element('#view-name').textContent = value === 'orbit' ? selected!.name : view === 'mw-satellites' ? 'Milky Way satellites' : 'Local Group';
+  element('#view-name').textContent = value === 'orbit' ? selected!.name : useGravity ? 'Local Group orbits' : view === 'mw-satellites' ? 'Milky Way satellites' : 'Local Group';
   controls.enableRotate = value !== 'flight';
 }
 function updatePositions() {
   const separation = Number(separationSlider.value);
   const previous = selected && models.get(selected.id)!.position.clone();
   const previousPlane = plane.grid.quaternion.clone();
-  const centers = entries.map(({galaxy}) => positionAt(galaxy, timeMyr, separation));
+  const activeEntries = useGravity ? entries.filter(entry => entry.model.visible) : entries;
+  const centers = activeEntries.map(({galaxy}) => useGravity
+    ? gravityPositionAt(galaxy.id, timeMyr, separation) : positionAt(galaxy, timeMyr, separation));
   const size = Number(sizeSlider.value);
   const diameters = logSizeButton.getAttribute('aria-pressed') === 'true'
-    ? cappedDiameters(centers, logDiameters, size)
-    : entries.map(({galaxy}) => galaxy.diameterKpc * size);
-  entries.forEach(({ galaxy, model }, i) => {
+    ? (limitSizes.checked ? cappedDiameters(centers, activeEntries.map(entry => entry.logDiameter), size)
+      : activeEntries.map(entry => entry.logDiameter * size))
+    : activeEntries.map(({galaxy}) => galaxy.diameterKpc * size);
+  activeEntries.forEach(({ galaxy, model }, i) => {
     model.position.fromArray(centers[i]);
     model.scale.setScalar(diameters[i]);
-    model.children[0].rotation.z = spinAt(galaxy, timeMyr);
+    model.children[0].rotation.z = useGravity ? 0 : spinAt(galaxy, timeMyr);
   });
   updateMotionArrows();
   updateDistanceReadout();
-  plane.update(models.get('milky-way')!.position, models.get('andromeda')!.position, models.get('triangulum')!.position);
+  if (useGravity) gravityView!.update(timeMyr, separation, haloToggle.checked, pathToggle.checked);
+  else plane.update(models.get('milky-way')!.position, models.get('andromeda')!.position, models.get('triangulum')!.position);
   if (mode === 'orbit' && selected && previous) {
     const shift = models.get(selected.id)!.position.clone().sub(previous);
     camera.position.add(shift);
@@ -256,17 +301,20 @@ function setPlayback(direction: typeof playback) {
   element('#pause-time').setAttribute('aria-pressed', String(playback === 0));
 }
 function setTime(value: number) {
-  timeMyr = THREE.MathUtils.clamp(value, -timeLimitMyr, timeLimitMyr);
-  if ((timeMyr === timeLimitMyr && playback === 1) || (timeMyr === -timeLimitMyr && playback === -1)) setPlayback(0);
+  const limit = currentTimeLimit();
+  timeMyr = THREE.MathUtils.clamp(value, -limit, limit);
+  if ((timeMyr === limit && playback === 1) || (timeMyr === -limit && playback === -1)) setPlayback(0);
   timeSlider.value = String(timeMyr);
-  const epochLabel = timeMyr === 0 ? 'Present day'
-    : Math.abs(timeMyr).toFixed(2) + ' Myr ' + (timeMyr < 0 ? 'ago' : 'ahead');
+  const interval = useGravity && Math.abs(timeMyr) >= 1000
+    ? (Math.abs(timeMyr) / 1000).toFixed(2) + ' Gyr'
+    : Math.abs(timeMyr).toFixed(useGravity ? 0 : 2) + ' Myr';
+  const epochLabel = timeMyr === 0 ? 'Present day' : interval + (timeMyr < 0 ? ' ago' : ' ahead');
   epoch.value = epochLabel;
   timeSlider.setAttribute('aria-valuetext', epochLabel);
   updatePositions();
 }
 function play(direction: -1 | 1) {
-  if (direction * timeMyr < timeLimitMyr) setPlayback(direction);
+  if (direction * timeMyr < currentTimeLimit()) setPlayback(direction);
 }
 element('#play-backward').onclick = () => play(-1);
 element('#play-forward').onclick = () => play(1);
@@ -276,6 +324,14 @@ timeSlider.oninput = () => { setPlayback(0); setTime(Number(timeSlider.value)); 
 function overview(satellites = false) {
   view = satellites ? 'mw-satellites' : 'group';
   setMode('overview');
+  if (useGravity) {
+    // View the three large galaxies face-on, with the Milky Way–M31 baseline horizontal.
+    const andromeda = new THREE.Vector3(...gravityPositionAt('andromeda', 0)).normalize();
+    const triangulum = new THREE.Vector3(...gravityPositionAt('triangulum', 0));
+    const sight = andromeda.clone().cross(triangulum).normalize();
+    fitGroup(sight, sight.clone().cross(andromeda), false);
+    return;
+  }
   const origin = models.get('milky-way')!.position;
   const axis = models.get('andromeda')!.position.clone().sub(origin).normalize();
   const upward = new THREE.Vector3(0,1,0);
@@ -306,12 +362,19 @@ function fitGroup(sight: THREE.Vector3, upward: THREE.Vector3, anchorOnPlane: bo
   // Fit the physical extents in camera coordinates for the current aspect ratio.
   const bounds = new THREE.Box3();
   entries.forEach(({galaxy, model}) => {
-    if (view === 'mw-satellites' && galaxy.id !== 'milky-way' && galaxy.hostId !== 'milky-way') return;
-    const radius = model.scale.x / 2;
+    if (!model.visible || (view === 'mw-satellites' && galaxy.id !== 'milky-way' && galaxy.hostId !== 'milky-way')) return;
+    const halo = useGravity && haloToggle.checked ? gravityBodies.find(body => body.id === galaxy.id) : undefined;
+    const radius = Math.max(model.scale.x / 2, halo ? haloExtentInScaleRadii * halo.haloScaleKpc * Number(separationSlider.value) : 0);
     const center = new THREE.Vector3(model.position.dot(right), model.position.dot(up), model.position.dot(sight));
     bounds.expandByPoint(center.clone().addScalar(radius));
     bounds.expandByPoint(center.clone().subScalar(radius));
   });
+  if (useGravity && pathToggle.checked && gravityView) {
+    const separation = Number(separationSlider.value);
+    for (const point of gravityView.pathPoints) {
+      bounds.expandByPoint(new THREE.Vector3(point.dot(right), point.dot(up), point.dot(sight)).multiplyScalar(separation));
+    }
+  }
   const center = bounds.getCenter(new THREE.Vector3());
   const extent = bounds.getSize(new THREE.Vector3());
   controls.target.copy(right).multiplyScalar(center.x).addScaledVector(up,center.y).addScaledVector(sight,center.z);
@@ -340,8 +403,36 @@ function frame(edgeOn = false) {
   controls.update();
   canvas.focus({preventScroll:true});
 }
+const highlight = element<HTMLButtonElement>('#highlight-dwarf');
+highlight.onclick = () => {
+  highlight.setAttribute('aria-pressed', String(highlight.getAttribute('aria-pressed') !== 'true'));
+  sceneDirty = true;
+};
+function updateHighlight() {
+  const active = selected && !highlight.hidden && highlight.getAttribute('aria-pressed') === 'true';
+  const target = active ? models.get(selected!.id)! : undefined;
+  const center = target?.position.clone().project(camera);
+  const pixelsPerUnit = canvas.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  const radius = (model: THREE.Group) => pixelsPerUnit * model.scale.x / (2 * -model.position.clone().applyMatrix4(camera.matrixWorldInverse).z);
+  const targetRadius = target ? radius(target) : 0;
+  for (const { model } of entries) {
+    let contrast = 1;
+    if (model === target) contrast = 2.5;
+    else if (center && targetRadius > 0) {
+      const point = model.position.clone().project(camera);
+      const distance = Math.hypot((point.x - center.x) * canvas.clientWidth / 2, (point.y - center.y) * canvas.clientHeight / 2);
+      const gap = distance - targetRadius - radius(model);
+      contrast = THREE.MathUtils.lerp(0.18, 1, THREE.MathUtils.smoothstep(gap, 0, 50));
+    }
+    const stars = model.children[0] as THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    stars.material.uniforms.contrast.value = contrast;
+  }
+}
+const solarMasses = new Intl.NumberFormat('en-US', {notation: 'compact', compactDisplay: 'long', maximumSignificantDigits: 3});
 function select(galaxy: Galaxy) {
   if (mode === 'orbit' && selected !== galaxy) setMode('flight');
+  if (selected !== galaxy) highlight.setAttribute('aria-pressed', 'false');
+  highlight.hidden = ['barred', 'ringed', 'open-spiral'].includes(galaxy.model);
   selected = galaxy;
   sceneDirty = true;
   labelOrder = entries.filter(entry => entry.galaxy === selected).concat(entries.filter(entry => entry.galaxy !== selected));
@@ -351,7 +442,7 @@ function select(galaxy: Galaxy) {
   });
   const panel = element('#details');
   panel.hidden = false;
-  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p><p id="mw-separation"></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
+  panel.innerHTML = '<h2></h2><p class="measure"></p><p class="enclosed-mass" hidden></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p><p id="mw-separation"></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
   panel.querySelector('h2')!.textContent = galaxy.name;
   const brightness = galaxy.absoluteMagnitudeV;
   panel.querySelector('.measure')!.textContent = 'Adopted diameter · ' + galaxy.diameterKpc.toLocaleString('en-US') + ' kpc'
@@ -361,15 +452,32 @@ function select(galaxy: Galaxy) {
   updateDistanceReadout();
   const motion = motionInfo(galaxy);
   const motionNotes = panel.querySelectorAll('.motion p');
-  motionNotes[0].textContent = 'Center motion · ' + motion.translation;
-  motionNotes[1].textContent = 'Internal rotation · ' + motion.rotation;
+  const body = gravityBodies.find(item => item.id === galaxy.id);
+  if (body?.halfLight) {
+    const { massSolar, radiusKpc } = body.halfLight;
+    const measurement = panel.querySelector<HTMLElement>('.enclosed-mass')!;
+    measurement.hidden = false;
+    measurement.textContent = 'Stellar motions imply ' + solarMasses.format(massSolar) + ' solar masses inside '
+      + Math.round(radiusKpc * 1000) + ' pc, the radius enclosing half the starlight. This includes stars and dark matter.';
+  }
+  if (useGravity && body) {
+    motionNotes[0].textContent = (body.halfLight ? 'Extrapolated total dark halo' : 'Adopted total dark halo')
+      + ' · ' + solarMasses.format(body.haloMassSolar) + ' solar masses, scale radius ' + body.haloScaleKpc + ' kpc.';
+    motionNotes[1].textContent = 'Adopted ordinary matter · ' + solarMasses.format(body.baryonMassSolar) + ' solar masses.';
+  } else {
+    motionNotes[0].textContent = 'Center motion · ' + motion.translation;
+    motionNotes[1].textContent = 'Internal rotation · ' + motion.rotation;
+  }
   const buttons = panel.querySelectorAll('button');
   buttons[0].onclick = buttons[1].onclick = () => frame();
   buttons[2].onclick = () => frame(true);
   const notes = panel.querySelectorAll('details p');
   notes[0].textContent = galaxy.sizeNote;
   notes[1].textContent = galaxy.modelNote;
-  for (const source of [...galaxy.sources, ...motion.sources]) {
+  const sources = [...galaxy.sources, ...motion.sources];
+  if (body?.halfLight) sources.push(dwarfMassSource);
+  if (useGravity && (galaxy.id === 'andromeda' || galaxy.id === 'triangulum')) sources.push(gravityMassSource);
+  for (const source of sources) {
     const item = document.createElement('li'), link = document.createElement('a');
     link.href = source.url;
     link.textContent = source.title;
@@ -379,6 +487,63 @@ function select(galaxy: Galaxy) {
     panel.querySelector('ul')!.append(item);
   }
 }
+function refreshGravityLayers() {
+  element('#halo-key').hidden = !haloToggle.checked;
+  element('#path-key').hidden = !pathToggle.checked;
+  element('#band').textContent = useGravity && haloToggle.checked ? 'Visible light + modeled dark matter' : 'Visible light';
+  if (useGravity) {
+    gravityView!.update(timeMyr, Number(separationSlider.value), haloToggle.checked, pathToggle.checked);
+    sceneDirty = true;
+  }
+}
+for (const toggle of [haloToggle, pathToggle]) {
+  toggle.onchange = () => {
+    refreshGravityLayers();
+    if (toggle.checked && mode === 'overview') refitGroup();
+  };
+}
+modelSelector.onchange = () => {
+  useGravity = modelSelector.value === 'gravity';
+  if (useGravity && !gravityView) {
+    gravityView = createGravityView();
+    scene.add(gravityView.group);
+  }
+  if (gravityView) gravityView.group.visible = useGravity;
+  setPlayback(0);
+  setMode('overview');
+  centerOnPlane = false;
+  for (const entry of entries) entry.model.visible = !useGravity || gravityIds.has(entry.galaxy.id);
+  if (selected && !models.get(selected.id)!.visible) {
+    selected = undefined;
+    highlight.hidden = true;
+    highlight.setAttribute('aria-pressed', 'false');
+    distanceReadout = undefined;
+    element('#details').hidden = true;
+    for (const entry of entries) {
+      entry.button.setAttribute('aria-pressed', 'false');
+      entry.label.classList.remove('selected');
+    }
+    labelOrder = entries;
+  }
+  search.value = '';
+  search.dispatchEvent(new Event('input'));
+  for (const panel of document.querySelectorAll<HTMLElement>('[data-linear-panel]')) panel.hidden = useGravity;
+  element('#gravity-options').hidden = !useGravity;
+  plane.grid.visible = !useGravity && showPlane.checked;
+  vectors.visible = !useGravity && showMotion.checked;
+  const limit = currentTimeLimit();
+  timeSlider.min = String(-limit);
+  timeSlider.max = String(limit);
+  timeSlider.step = useGravity ? '1' : '0.01';
+  element('#play-rate').textContent = useGravity ? gravityRateMyrPerSecond + ' million years per second' : '1 million years per second';
+  timelineGuide.textContent = useGravity
+    ? gravityBodies.length + ' galaxies interact over ±2 billion years in the Milky Way frame. Halos always affect gravity. Stellar shapes are fixed.'
+    : linearGuide;
+  setTime(timeMyr);
+  if (selected) select(selected);
+  overview();
+  refreshGravityLayers();
+};
 element('#overview').onclick = () => overview();
 element('#satellites').onclick = () => overview(true);
 element('#plane-top').onclick = () => viewPlane(false);
@@ -387,6 +552,8 @@ logSizeButton.onclick = () => {
   const active = logSizeButton.getAttribute('aria-pressed') !== 'true';
   logSizeButton.setAttribute('aria-pressed', String(active));
   element('#log-size-note').hidden = !active;
+  labels.classList.toggle('enlarged', active);
+  entries.forEach(({ model }) => emphasizeSubpixelStars(model, active));
   updateScale();
 };
 sizeSlider.oninput = separationSlider.oninput = updateScale;
@@ -430,6 +597,7 @@ canvas.addEventListener('pointerup', e => {
     ray.setFromCamera(point,camera);
     let closest: Galaxy | undefined, depth = Infinity;
     for (const {galaxy,model} of entries) {
+      if (!model.visible) continue;
       const hit = ray.ray.intersectSphere(new THREE.Sphere(model.position,model.scale.x/2),new THREE.Vector3());
       if (hit && camera.position.distanceTo(hit) < depth) {
         closest = galaxy;
@@ -465,13 +633,14 @@ function resize() {
 }
 const projected = new THREE.Vector3();
 function drawLabels() {
+  if (labels.hidden) return;
   const width = canvas.clientWidth, height = canvas.clientHeight;
   const used: {x:number,y:number,w:number}[] = [];
   for (const entry of labelOrder) {
     const { galaxy, model, label, marker, leader } = entry;
     projected.copy(model.position).project(camera);
     const px = (projected.x+1)*width/2, py = (1-projected.y)*height/2;
-    const hide = Math.abs(projected.z)>1 || px < 0 || px > width || py < 0 || py > height || (mode === 'orbit' && galaxy === selected);
+    const hide = !model.visible || Math.abs(projected.z)>1 || px < 0 || px > width || py < 0 || py > height || (mode === 'orbit' && galaxy === selected);
     marker.hidden = hide;
     if (hide) {
       label.hidden = true;
@@ -508,12 +677,14 @@ const ruler = element('#distance');
 let last = performance.now();
 renderer.setAnimationLoop(now => {
   const elapsed = Math.max(0, (now - last) / 1000);
-  if (playback) setTime(timeMyr + playback * elapsed);
+  if (playback) setTime(timeMyr + playback * elapsed * (useGravity ? gravityRateMyrPerSecond : 1));
   fly(Math.min(elapsed, 0.1));
   last = now;
   controls.update();
   if (!sceneDirty) return;
   sceneDirty = false;
+  camera.updateMatrixWorld();
+  updateHighlight();
   renderer.render(scene,camera);
   drawLabels();
   const kpc = 82 * 2 * camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) / canvas.clientHeight;
@@ -529,12 +700,17 @@ function selectedMotionArrow() {
 }
 Object.assign(window,{
   explorerState: () => ({
+    motionModel: useGravity ? 'gravity' : 'linear',
+    darkHalosVisible: Boolean(gravityView?.group.visible && gravityView.halos.visible),
+    comparePaths: Boolean(gravityView?.group.visible && gravityView.paths.visible),
+    haloRadii: Object.fromEntries((gravityView?.halos.children ?? []).map(halo =>
+      [halo.name, halo.getWorldScale(new THREE.Vector3()).x / (2 * haloExtentInScaleRadii)])),
     timeMyr, playback, view, velocityVectorsVisible: vectors.visible,
     motionArrowPeriod: arrowPeriod.value, motionArrowScale: Number(arrowScale.value), selectedArrow: selectedMotionArrow(),
     planeNormal: plane.normal.toArray(), planeVisible: plane.grid.visible,
     spins: Object.fromEntries(entries.map(({galaxy, model}) => [galaxy.id, model.children[0].rotation.z])),
     selected: selected?.id ?? null, mode, camera: camera.position.toArray(), target: controls.target.toArray(),
-    galaxies: Object.fromEntries(entries.map(({galaxy,model}) => [galaxy.id,{center:model.position.toArray(),diameter:model.scale.x}])),
+    galaxies: Object.fromEntries(entries.filter(entry => entry.model.visible).map(({galaxy,model}) => [galaxy.id,{center:model.position.toArray(),diameter:model.scale.x}])),
     size:Number(sizeSlider.value),separation:Number(separationSlider.value)
   })
 });

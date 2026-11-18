@@ -87,12 +87,19 @@ function boundedTime(timeMyr: number) {
   return Math.max(-timeLimitMyr, Math.min(timeLimitMyr, timeMyr))
 }
 
+export function centerVelocityKpcPerMyr(galaxy: Galaxy): Coordinates | undefined {
+  if (galaxy.id === 'milky-way') return [0, 0, 0]
+  const data = astrometry[galaxy.id]
+  if (!data) return undefined
+  return velocity(galaxy, data).map(kms => kms * kpcPerKmPerSecMyr) as Coordinates
+}
+
 export function positionAt(galaxy: Galaxy, timeMyr: number, separation = 1): Coordinates {
   const base = placement(galaxy, 1, separation).center
-  const data = astrometry[galaxy.id]
-  if (!data || timeMyr === 0) return base
-  const drift = velocity(galaxy, data)
-  const scale = kpcPerKmPerSecMyr * boundedTime(timeMyr) * separation
+  if (timeMyr === 0) return base
+  const drift = centerVelocityKpcPerMyr(galaxy)
+  if (!drift) return base
+  const scale = boundedTime(timeMyr) * separation
   return base.map((coordinate, i) => coordinate + drift[i] * scale) as Coordinates
 }
 

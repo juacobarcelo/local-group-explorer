@@ -1,62 +1,37 @@
 # Local Group Explorer
 
-Explore the Milky Way, Andromeda, Triangulum, the Magellanic Clouds and nearby dwarf galaxies in a browser. Each galaxy has a three-dimensional reconstruction of its visible stellar body. Select a galaxy and open **Model & sources** to see its adopted diameter, reconstructed features and references.
+Where is the Triangulum Galaxy (M33) in relation to Andromeda (M31), and how might their separation change over the next two billion years? Local Group Explorer lets you explore our galactic neighbourhood in 3D and compare the motions we measure today with the paths that gravity could produce.
 
-## Run locally
+![Seven labelled galaxies in the Milky Way frame, with curved orbital tracks and violet halos around Andromeda and the Milky Way](docs/images/local-group-orbits.png)
 
-From a fresh copy of this project, use Node.js 24 with npm and a desktop browser with WebGL 2 enabled. In the folder containing this README, run the following commands.
+*One possible Local Group configuration two billion years from now, captured in the simulator. The solid turquoise tracks include mutual gravity. The dashed amber tracks extend the same present-day velocities in straight lines. Violet shows the modelled dark matter halos.*
 
-```sh
-npm ci
-npm run dev
-```
+## About the project
 
-Open the local address printed by Vite. To build and serve the production version, run `npm run build` followed by `npm run preview`.
+If you have seen M31 and M33 through binoculars, you know their positions against the stars. This browser-based atlas lets you leave that line of sight, turn the group edge-on and see the depth that a sky chart flattens. The present-day catalogue contains 23 galaxies. Seven have both initial velocities and explicit mass models in the gravitational simulation. These are the Milky Way, Andromeda, Triangulum, the Large and Small Magellanic Clouds, Draco and Fornax. The catalogue guide explains the selection and how it relates to published counts of Local Group members. [Catalogue and coverage](docs/catalog.md)
 
-## Explore
+## What you can explore
 
-| Action | Control |
-| --- | --- |
-| Locate a galaxy | Choose its catalog entry or click its map label. |
-| Orbit | Select **Frame galaxy**, then drag in the map. |
-| Inspect the model | Choose **Observed view** or **Edge-on view** in the galaxy card. |
-| Show the reference plane | Enable **Show reference plane** to draw a grid through the centers of the Milky Way, Andromeda and Triangulum. |
-| Inspect the group from two directions | Choose **Top view** to see the triangle, or **Edge-on plane view** to see the two Magellanic Clouds on the same side of the grid. Drag to change your viewing angle. |
-| Explore close companions | Select **Milky Way satellites**, then enable **Show motion arrows**. Choose **Since present day** and set **Arrow length** to **50×** to see small displacements while scrubbing time. The distance in the selected galaxy’s card stays in physical units. |
-| Move through time | Drag **Simulation time**, play forward or backward, pause, or choose **Return to present**. |
-| Zoom | Scroll the mouse wheel. |
-| Fly freely | Use W/S to move forward/back, A/D for sideways movement and Q/E to descend/rise. Drag to look around. |
-| Return to the group | Choose **Overview** or press Home with the map focused. |
+- **The geometry of our neighbourhood.** Rotate around the plane through the centres of the Milky Way, Andromeda and Triangulum. Follow their companions above or below it, or view an individual galaxy along the line of sight from Earth.
+- **Two scales of time.** Explore ten million years either side of today using measured velocities and illustrative stellar rotation where data are available. Switch to mutual gravity to follow the seven galaxy centres up to two billion years into the past or future. Watch the Milky Way–Andromeda distance change as the clock runs.
+- **A dwarf galaxy and its halo.** Compare Draco's luminous body with its modelled dark halo. Hide the halo to examine the stars. Its mass continues to affect every orbit. You can also enlarge faint companions or highlight a single dwarf in a crowded field.
 
-At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. In logarithmic mode each galaxy grows until its three-dimensional envelope reaches its allotted space. Nearby pairs share 95% of the distance between centers in proportion to their logarithmic sizes. The limits follow the epoch and separation settings. Two galaxies can still line up on the screen when one lies behind the other. Switch back to linear sizes to compare their physical proportions.
+## Observations and model assumptions
 
-The reference plane follows the centers of the Milky Way, Andromeda and Triangulum at the selected time. Dragging to orbit changes only the camera.
+The atlas places galaxies using their sky coordinates and estimated distances. Their visible shapes are reconstructions with illustrative stellar points and spiral arms. At the initial size and separation settings, diameters and distances use the same scale. Logarithmic sizing exaggerates small galaxies so you can pick them out. [Geometry and visual references](docs/catalog.md)
 
-## How many galaxies are there?
+Draco illustrates how a measurement enters the simulation. Its stellar motions imply about **21 million solar masses inside 291 parsecs**, the radius enclosing half its light. That figure includes stars and dark matter. To calculate Draco's pull on distant galaxies, the simulator adopts a halo profile extending beyond those stars. The resulting total dark mass of about **233 million solar masses** depends on that choice. [Wolf et al., enclosed mass estimates](https://arxiv.org/abs/0908.2995) · [Halo calibration](docs/gravity.md)
 
-The explorer shows 23 galaxies. A count of confirmed galaxies within one megaparsec of the Local Volume Database group center gives 114, including the Milky Way. The [catalog guide](docs/catalog.md) gives the release and selection criteria. Makarov and colleagues counted **134 galaxies within one megaparsec of the Local Group barycenter** in their 2025 compilation. This is a spatial selection around the group's center of mass, and surveys continue to identify faint candidates. [Makarov et al. (2025), section 1](https://doi.org/10.1051/0004-6361/202554778)
+The long-term orbits show one scenario with fixed masses and initial velocities. Uncertainty in those inputs, tidal mass loss and dynamical friction all matter when interpreting close encounters. The displayed paths cannot establish the date or outcome of a future merger. [Motion measurements](docs/motion.md) · [Gravity model and numerical checks](docs/gravity.md)
 
-## Time and telescope observations
+## Data, references and credits
 
-The timeline covers ten million years before and after the catalog epoch. It combines measured center velocities in a Milky Way reference frame with illustrative disk rotation where a speed and radius have been adopted. The [motion guide](docs/motion.md) explains the sources, assumptions and coverage.
+- **Positions, distances and sizes.** The nearby galaxy catalogue and the versioned Local Volume Database provide the observational basis for the map. [McConnachie (2012)](https://arxiv.org/abs/1204.1562) · [Local Volume Database v1.1.2](https://github.com/apace7/local_volume_database/releases/tag/v1.1.2)
+- **Galaxy motion and mass.** Proper-motion measurements constrain the sideways velocities of M31 and M33. Published mass models inform how strongly they attract their neighbours. Each galaxy's **Model & sources** panel links to its references. [Wu et al., proper motions](https://doi.org/10.1051/0004-6361/202555477) · [Patel et al., mass models](https://doi.org/10.1093/mnras/stw2616)
+- **Observations to explore alongside the atlas.** Public Hubble mosaics resolve stars across parts of M31 and M33. Webb observations offer a closer look at stars in the isolated dwarf WLM. [Hubble PHAT](https://archive.stsci.edu/hlsp/phat) · [Hubble PHATTER](https://archive.stsci.edu/hlsp/phatter) · [Webb JWSTSTARS](https://archive.stsci.edu/hlsp/jwststars)
 
-To explore additional observations:
+When sharing the original galaxy renderings, credit **Local Group Explorer contributors**. The catalogue guide gives the attribution terms and credits for external images. [Image credits and reuse](docs/catalog.md#visual-references-and-reuse)
 
-- **Resolved stars in Andromeda and Triangulum.** Hubble image mosaics and stellar brightness catalogs span ultraviolet, optical and near-infrared bands. Each survey covers part of its galaxy. [Andromeda PHAT](https://archive.stsci.edu/hlsp/phat) · [Triangulum PHATTER](https://archive.stsci.edu/hlsp/phatter)
-- **Gas motion in IC 1613.** VLA radio observations of neutral hydrogen provide intensity and velocity maps. The line-of-sight gas velocity varies across the disk. This is a different measurement from the galaxy center's velocity through the Local Group. [NRAO observations and data products](https://science.nrao.edu/science/surveys/littlethings/data/ic1613.html)
+## Try it and learn more
 
-- **Resolved stars in WLM.** Webb near-infrared imaging and photometry reveal individual stars in this isolated dwarf. [JWSTSTARS data products](https://archive.stsci.edu/hlsp/jwststars)
-
-## Tests
-
-```sh
-npm test
-npx playwright install chromium
-npm run test:e2e
-```
-
-On Linux hosts lacking Chromium system libraries, use `npx playwright install --with-deps chromium`. The browser tests start a local Vite server automatically. They check camera motion and scene geometry through the controls, then capture Andromeda from two directions and both Magellanic Clouds. Find the PNGs under `test-results/`. GitHub Actions runs the build and both test commands and uploads browser results.
-
-## Catalog and model credits
-
-The [catalog guide](docs/catalog.md) explains how to add a galaxy, record its sources, interpret the reference positions and reuse the original model outputs.
+[Run the explorer locally](docs/user-guide.md#run-locally) · [Illustrated user guide](docs/user-guide.md) · [Scientific model notes](docs/gravity.md)

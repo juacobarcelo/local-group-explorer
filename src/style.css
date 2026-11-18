@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   outline-offset: 2px;
 }
 
-header button, #overview, dialog button, #details button, .plane-panel button, #log-size {
+header button, #overview, #map-names, #highlight-dwarf, dialog button, #details button, .plane-panel button, #log-size {
   background: #1a202a;
   border: 1px solid #394351;
   border-radius: 6px;
@@ -278,7 +278,7 @@ input[type=range] {
   margin-top: 8px;
 }
 
-#overview {
+#overview, #map-names {
   background: #111924d9;
 }
 
@@ -611,3 +611,33 @@ dd {
   .stage { grid-template-rows: auto auto; }
   .timeline { padding: 10px 16px; }
 }
+
+.time-model, .epoch-label { display: flex; align-items: center; gap: 8px; }
+#gravity-options { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-top: 9px; }
+#gravity-separation { font: 12px var(--mono); color: var(--mint); }
+#motion-model { max-width: 100%; padding: 7px; font: inherit; font-size: 13px; border: 1px solid #394351; border-radius: 5px; background: #1a202a; color: inherit; }
+#gravity-options label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+#gravity-options input { accent-color: var(--mint); }
+#gravity-options p { font-size: 12px; line-height: 1.4; color: var(--muted); margin: 0; }
+.gravity-key, .linear-key { display: inline-block; width: 15px; vertical-align: middle; border-top: 2px solid #6cdcc2; margin: 0 2px; }
+.linear-key { border-top: 2px dashed #ffc878; margin-left: 9px; }
+
+.header-actions { display: flex; align-items: center; gap: 8px; }
+main:has(> aside[hidden]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 550px) {
+  header { position: sticky; top: 0; z-index: 10; }
+  #explorer-menu {
+    position: fixed;
+    inset: 52px auto 0 0;
+    width: min(310px, 90vw);
+    z-index: 9;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 6px 0 18px #0008;
+  }
+}
+
+#labels.enlarged .marker { opacity: 0; }
+#labels.enlarged line { opacity: .35; }
+.viewport-top .actions { margin: 0; justify-content: flex-end; }
+#highlight-dwarf[aria-pressed=true], #map-names[aria-pressed=true] { color: var(--mint); }

@@ -226,6 +226,31 @@ test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   const compressed = await readScene(page);
   expect(compressed.galaxies.m32.diameter).toBeGreaterThan(physical.galaxies.m32.diameter * 2);
+  // Check light in the rendered image, since a large model can still render black.
+  const center = await page.getByRole('button', { name: 'Select Fornax on map', includeHidden: true })
+    .evaluate(label => {
+      const marker = label.previousElementSibling!.getBoundingClientRect();
+      return { x: marker.x + marker.width / 2, y: marker.y + marker.height / 2 };
+    });
+  const crop = await page.screenshot({
+    clip: { x: Math.round(center.x) - 12, y: Math.round(center.y) - 12, width: 24, height: 24 },
+    style: '#sky { background: black } #labels { visibility: hidden }',
+  });
+  const brightPixels = await page.evaluate(async (png) => {
+    const bitmap = await createImageBitmap(await (await fetch('data:image/png;base64,' + png)).blob());
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (Math.max(data[i], data[i + 1], data[i + 2]) >= 24) count++;
+    }
+    return count;
+  }, crop.toString('base64'));
+  expect(brightPixels).toBeGreaterThan(15);
   const assertEnvelopes = (state: SceneState) => {
     const galaxies = Object.values(state.galaxies);
     for (let i = 0; i < galaxies.length; i++) {
@@ -239,10 +264,16 @@ test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', 
   for (const [id, galaxy] of Object.entries(physical.galaxies)) {
     expect(compressed.galaxies[id].center).toEqual(galaxy.center);
   }
-  assertEnvelopes(compressed);
+  await page.getByRole('button', { name: 'Names', exact: true }).click();
+  await expect(page.locator('#labels')).toBeHidden();
+  await page.getByRole('button', { name: 'Names', exact: true }).click();
+  await page.locator('#limit-sizes').check();
+  const limited = await readScene(page);
+  expect(compressed.galaxies.andromeda.diameter).toBeGreaterThan(limited.galaxies.andromeda.diameter * 2);
+  assertEnvelopes(limited);
   await setScale(page, 'Galaxy size', 2);
   const enlarged = await readScene(page);
-  expect(enlarged.galaxies.andromeda.diameter).toBeCloseTo(compressed.galaxies.andromeda.diameter);
+  expect(enlarged.galaxies.andromeda.diameter).toBeCloseTo(limited.galaxies.andromeda.diameter);
   assertEnvelopes(enlarged);
   await setScale(page, 'Galaxy separation', 0.5);
   await page.locator('#time').focus();
@@ -277,4 +308,26 @@ test('amplify elapsed displacement without moving the galaxy centers', async ({ 
   await page.locator('#reset-time').click();
   await expect(page.locator('#mw-separation')).not.toHaveText(readout);
   expect((await readScene(page)).selectedArrow).toBeNull();
+});
+
+test('highlight M32 among its neighbors without moving galaxies', async ({ page }, info) => {
+  await openAtlas(page);
+  await page.locator('#log-size').click();
+  await setScale(page, 'Galaxy size', 4);
+  await setScale(page, 'Galaxy separation', 2);
+  await page.locator('[data-galaxy="m32"]').click();
+  await page.locator('#map-names').click();
+  const toggle = page.getByRole('button', {name:'Highlight dwarf'});
+  const state = await readScene(page);
+  const sky = page.locator('#sky');
+  const options = {style: '.viewport-top {visibility:hidden}'};
+  const before = await sky.screenshot({...options, path:info.outputPath('before.png')});
+  await toggle.click();
+  const highlighted = await sky.screenshot({...options, path:info.outputPath('highlighted.png')});
+  expect(highlighted.equals(before)).toBe(false);
+  expect((await readScene(page)).galaxies).toEqual(state.galaxies);
+  await toggle.click();
+  expect((await sky.screenshot(options)).equals(before)).toBe(true);
+  await page.locator('[data-galaxy="andromeda"]').click();
+  await expect(toggle).toBeHidden();
 });
