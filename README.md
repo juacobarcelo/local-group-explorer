@@ -28,7 +28,7 @@ Open the local address printed by Vite. To build and serve the production versio
 | Fly freely | Use W/S to move forward/back, A/D for sideways movement and Q/E to descend/rise. Drag to look around. |
 | Return to the group | Choose **Overview** or press Home with the map focused. |
 
-At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Labels help locate small galaxies at true scale.
+At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. The size slider still multiplies all displayed diameters. Switch back to linear sizes to compare their physical proportions.
 
 The reference plane follows the centers of the Milky Way, Andromeda and Triangulum at the selected time. Dragging to orbit changes only the camera.
 

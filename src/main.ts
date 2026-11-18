@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { galaxies, type Galaxy } from './catalog';
-import { observerDirection } from './physics';
+import { logarithmicDiameter, observerDirection } from './physics';
 import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel } from './models';
 import { createReferencePlane } from './plane';
@@ -46,6 +46,8 @@ function setCameraUp(up: THREE.Vector3) {
   controls.target.copy(target);
 }
 
+const logSizeButton = element<HTMLButtonElement>('#log-size');
+const largestDiameterKpc = Math.max(...galaxies.map(galaxy => galaxy.diameterKpc));
 const sizeSlider = element<HTMLInputElement>('#size');
 const separationSlider = element<HTMLInputElement>('#separation');
 const timeSlider = element<HTMLInputElement>('#time');
@@ -198,7 +200,11 @@ function updatePositions() {
 }
 function updateScale() {
   const size = Number(sizeSlider.value);
-  for (const { galaxy, model } of entries) model.scale.setScalar(galaxy.diameterKpc * size);
+  const logarithmic = logSizeButton.getAttribute('aria-pressed') === 'true';
+  for (const { galaxy, model } of entries) {
+    const diameter = logarithmic ? logarithmicDiameter(galaxy.diameterKpc, largestDiameterKpc) : galaxy.diameterKpc;
+    model.scale.setScalar(diameter * size);
+  }
   updatePositions();
   if (mode === 'overview') refitGroup();
   element('#size-value').textContent = size + '×';
@@ -336,6 +342,12 @@ element('#overview').onclick = () => overview();
 element('#satellites').onclick = () => overview(true);
 element('#plane-top').onclick = () => viewPlane(false);
 element('#plane-edge').onclick = () => viewPlane(true);
+logSizeButton.onclick = () => {
+  const active = logSizeButton.getAttribute('aria-pressed') !== 'true';
+  logSizeButton.setAttribute('aria-pressed', String(active));
+  element('#log-size-note').hidden = !active;
+  updateScale();
+};
 sizeSlider.oninput = separationSlider.oninput = updateScale;
 const keys = new Set<string>();
 const flightKeys = ['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE'];

@@ -215,3 +215,25 @@ test('search the dwarf catalog and follow measured motion through time', async (
   await page.locator('#play-forward').click();
   await expect.poll(async () => (await readScene(page)).timeMyr).toBeGreaterThan(-10);
 });
+
+test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', async ({ page }) => {
+  await openAtlas(page);
+  const physical = await readScene(page);
+  const toggle = page.getByRole('button', { name: /logarithmic/i });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const compressed = await readScene(page);
+  expect(compressed.galaxies.m32.diameter).toBeGreaterThan(physical.galaxies.m32.diameter * 2);
+  expect(compressed.galaxies.andromeda.diameter).toBeCloseTo(physical.galaxies.andromeda.diameter);
+  for (const [id, galaxy] of Object.entries(physical.galaxies)) {
+    expect(compressed.galaxies[id].center).toEqual(galaxy.center);
+  }
+  await setScale(page, 'Galaxy size', 2);
+  expect((await readScene(page)).galaxies.m32.diameter).toBeCloseTo(compressed.galaxies.m32.diameter * 2);
+  await toggle.click();
+  const restored = await readScene(page);
+  for (const [id, galaxy] of Object.entries(physical.galaxies)) {
+    expect(restored.galaxies[id].diameter).toBeCloseTo(galaxy.diameter * 2);
+  }
+});

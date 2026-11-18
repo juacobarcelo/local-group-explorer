@@ -5,6 +5,11 @@ export const radians = (degrees: number) => degrees * Math.PI / 180
 export const lightYearsPerKpc = 3261.56
 export const lightYearsToKpc = (lightYears: number) => lightYears / lightYearsPerKpc
 
+export function logarithmicDiameter(diameterKpc: number, largestDiameterKpc: number): number {
+  const contrast = 100
+  return largestDiameterKpc * (Math.log1p(contrast * (diameterKpc / largestDiameterKpc)) / Math.log1p(contrast))
+}
+
 /** Equatorial J2000 coordinates with celestial north up and increasing RA toward -Z. */
 export function skyDirection(raDeg: number, decDeg: number): Coordinates {
   const ra = radians(raDeg)
