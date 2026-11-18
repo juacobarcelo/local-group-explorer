@@ -13,8 +13,16 @@
   </header>
   <main>
     <aside>
-      <section class="catalog"><h1>Galaxy catalog</h1><div id="catalog"></div></section>
+      <section class="catalog"><h1>Galaxy catalog <span id="catalog-count"></span></h1>
+        <input type="search" id="catalog-search" aria-label="Search galaxies" placeholder="Search galaxies">
+        <div id="catalog"></div><p id="no-results" hidden>No matching galaxies.</p></section>
       <section id="details" hidden></section>
+      <section class="plane-panel">
+        <h2>Neighborhood</h2>
+        <div class="actions"><button id="satellites">Milky Way satellites</button></div>
+        <label><input id="show-motion" type="checkbox"> Show motion arrows</label>
+        <p>Each arrow spans <span id="vector-horizon">10</span> million years at the adopted velocity relative to the Milky Way.</p>
+      </section>
       <section class="plane-panel">
         <h2>Reference plane</h2>
         <p>Through the centers of the Milky Way, Andromeda and Triangulum.</p>
@@ -29,6 +37,7 @@
         <input id="separation" aria-label="Galaxy separation" type="range" min="0.25" max="2" value="1" step="0.25">
       </section>
     </aside>
+    <div class="stage">
     <section class="viewport" aria-label="Interactive three-dimensional galaxy map">
       <canvas id="sky" tabindex="0" aria-label="Galaxy map, use mouse and keyboard to explore"></canvas>
       <div id="labels"></div>
@@ -36,6 +45,20 @@
       <div class="viewport-bottom"><span id="mode">Overview</span><span class="ruler"><span id="distance"></span><i></i></span></div>
       <div id="error" role="alert" hidden>This 3D view requires WebGL 2. Enable hardware acceleration in your browser and reload.</div>
     </section>
+    <section class="timeline" aria-label="Simulation timeline">
+      <div class="timeline-title"><label for="time">Simulation time</label><output id="epoch" for="time">Present day</output></div>
+      <input id="time" type="range" value="0" step="0.01" min="-10" max="10">
+      <div class="time-actions">
+        <div class="transport">
+          <button id="play-backward" aria-label="Play backward" title="Play backward">◀</button>
+          <button id="pause-time" aria-label="Pause" title="Pause">Ⅱ</button>
+          <button id="play-forward" aria-label="Play forward" title="Play forward">▶</button>
+          <button id="reset-time">Return to present</button>
+        </div>
+        <span>1 million years per second</span>
+      </div>
+      <p>Short-term projection at constant velocity. Galaxies without an adopted velocity stay at their catalog positions.</p>
+    </section></div>
   </main>
   <dialog id="controls"><form method="dialog"><h2>Navigation controls</h2><dl>
     <dt>Orbit</dt><dd>Drag in the map</dd><dt>Zoom</dt><dd>Scroll the wheel</dd><dt>Free flight</dt><dd>W A S D to move, Q E to descend or rise. Drag to look around.</dd>

@@ -3,6 +3,7 @@ import {
   Points, ShaderMaterial, Vector2, Vector3
 } from 'three'
 import type { Galaxy } from './catalog'
+import { diskRadii } from './motion'
 import { observerDirection, radians, skyDirection } from './physics'
 
 function randomSequence(seed: number) {
@@ -70,6 +71,22 @@ function sampleCloud(model: Galaxy['model'], random: () => number, normal: () =>
   return { x, y, z: normal() * (large ? 0.028 : 0.075) + 0.05 * x, color }
 }
 
+function sampleDwarf(galaxy: Galaxy, random: () => number, normal: () => number): Sample {
+  const axisRatio = galaxy.axisRatio ?? 1
+  let x = normal() * 0.20
+  let y = normal() * 0.20
+  const z = normal() * 0.13
+  let color = random() < 0.7 ? ivory : amber
+  if (galaxy.model === 'irregular-dwarf' && random() < 0.45) {
+    const knot = Math.floor(random() * 4)
+    const phase = galaxy.raDeg + knot * 2.4
+    x = 0.23 * Math.cos(phase) + 0.055 * normal()
+    y = 0.23 * Math.sin(phase) + 0.060 * normal()
+    color = random() < 0.9 ? blue : pink
+  }
+  return { x, y: y * axisRatio, z: z * axisRatio, color }
+}
+
 function orient(group: Group, galaxy: Galaxy) {
   let normal: Vector3
   let major: Vector3
@@ -95,9 +112,10 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   const positions: number[] = []
   const colors: number[] = []
   const widths: number[] = []
-  const count = irregular ? 9500 : 22000
+  const dwarf = galaxy.model === 'spheroid' || galaxy.model === 'irregular-dwarf'
+  const count = dwarf ? 3400 : irregular ? 9500 : 22000
   while (widths.length < count) {
-    const { x, y, z, color } = irregular
+    const { x, y, z, color } = dwarf ? sampleDwarf(galaxy, random, normal) : irregular
       ? sampleCloud(galaxy.model, random, normal)
       : sampleSpiral(galaxy.model, random, normal)
     if (Math.hypot(x, y, z) > 0.5) continue
@@ -111,15 +129,27 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
   geometry.setAttribute('width', new Float32BufferAttribute(widths, 1))
+  const { reference, core } = diskRadii(galaxy)
   const material = new ShaderMaterial({
     vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending,
-    uniforms: { viewportHeight: { value: 1 } },
+    uniforms: { viewportHeight: { value: 1 }, spinAngle: { value: 0 },
+      referenceRadius: { value: reference }, coreRadius: { value: core } },
     vertexShader: `
-      uniform float viewportHeight;
+      uniform float viewportHeight, spinAngle, referenceRadius, coreRadius;
       attribute float width;
       varying vec3 tint;
       void main() {
-        vec4 view = modelViewMatrix * vec4(position, 1.0);
+        vec3 localPosition = position;
+        if (spinAngle != 0.0) {
+          // The Points object's rotation supplies the reference annulus angle.
+          float radialFactor = sqrt((referenceRadius * referenceRadius + coreRadius * coreRadius)
+            / (dot(position.xy, position.xy) + coreRadius * coreRadius));
+          float angle = spinAngle * (radialFactor - 1.0);
+          float c = cos(angle);
+          float s = sin(angle);
+          localPosition.xy = mat2(c, s, -s, c) * position.xy;
+        }
+        vec4 view = modelViewMatrix * vec4(localPosition, 1.0);
         gl_Position = projectionMatrix * view;
         float pixels = width * length(modelViewMatrix[0].xyz) * projectionMatrix[1][1]
           * viewportHeight * 0.5 / max(0.001, -view.z);
@@ -138,6 +168,7 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   const field = new Points(geometry, material)
   const viewport = new Vector2()
   field.onBeforeRender = renderer => {
+    material.uniforms.spinAngle.value = field.rotation.z
     material.uniforms.viewportHeight.value = renderer.getDrawingBufferSize(viewport).y
   }
   const group = new Group()

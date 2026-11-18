@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { galaxies, type Galaxy } from './catalog';
-import { placement, observerDirection } from './physics';
+import { observerDirection } from './physics';
+import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel } from './models';
 import { createReferencePlane } from './plane';
 import './style.css';
@@ -25,8 +26,10 @@ renderer.setClearColor(0, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, 0.001, 100000);
 camera.position.z = 1;
+let sceneDirty = true;
 function createControls() {
   const controls = new OrbitControls(camera, canvas);
+  controls.addEventListener('change', () => { sceneDirty = true; });
   controls.enablePan = false;
   controls.minDistance = 0.05;
   controls.maxDistance = 16000;
@@ -45,6 +48,13 @@ function setCameraUp(up: THREE.Vector3) {
 
 const sizeSlider = element<HTMLInputElement>('#size');
 const separationSlider = element<HTMLInputElement>('#separation');
+const timeSlider = element<HTMLInputElement>('#time');
+timeSlider.min = String(-timeLimitMyr);
+timeSlider.max = String(timeLimitMyr);
+const epoch = element<HTMLOutputElement>('#epoch');
+let timeMyr = 0;
+let playback: -1 | 0 | 1 = 0;
+let view: 'group' | 'mw-satellites' | 'plane-top' | 'plane-edge' | 'galaxy' | 'flight' = 'group';
 let selected: Galaxy | undefined;
 let mode: 'overview' | 'orbit' | 'flight' = 'overview';
 const models = new Map(galaxies.map(galaxy => {
@@ -52,14 +62,22 @@ const models = new Map(galaxies.map(galaxy => {
   scene.add(model);
   return [galaxy.id, model] as const;
 }));
-function catalogCenter(id: string) {
-  const galaxy = galaxies.find(entry => entry.id === id)!;
-  return new THREE.Vector3(...placement(galaxy).center);
-}
-const plane = createReferencePlane(catalogCenter('milky-way'), catalogCenter('andromeda'), catalogCenter('triangulum'));
+const plane = createReferencePlane();
 scene.add(plane.grid);
 const showPlane = element<HTMLInputElement>('#show-plane');
-showPlane.onchange = () => { plane.grid.visible = showPlane.checked; };
+showPlane.onchange = () => {
+  plane.grid.visible = showPlane.checked;
+  sceneDirty = true;
+};
+element('#vector-horizon').textContent = String(timeLimitMyr);
+const showMotion = element<HTMLInputElement>('#show-motion');
+const vectors = new THREE.Group();
+vectors.visible = false;
+scene.add(vectors);
+showMotion.onchange = () => {
+  vectors.visible = showMotion.checked;
+  sceneDirty = true;
+};
 
 const labels = element('#labels');
 const svgNamespace = 'http://www.w3.org/2000/svg';
@@ -102,8 +120,30 @@ const entries = galaxies.map(galaxy => {
   const leader = document.createElementNS(svgNamespace, 'line');
   leaders.append(leader);
   labels.append(marker, label);
-  return { galaxy, model, button, label, marker, leader };
+  const displacement = new THREE.Vector3(...positionAt(galaxy, timeLimitMyr)).sub(
+    new THREE.Vector3(...positionAt(galaxy, 0)),
+  );
+  let arrow: THREE.ArrowHelper | undefined;
+  const length = displacement.length();
+  if (length > 0) {
+    arrow = new THREE.ArrowHelper(displacement.normalize(), model.position, length, 0x76dabf, length * 0.23, length * 0.12);
+    vectors.add(arrow);
+  }
+  return { galaxy, model, button, label, marker, leader, arrow, labelWidth: 0 };
 });
+let labelOrder = entries;
+element('#catalog-count').textContent = String(entries.length);
+const search = element<HTMLInputElement>('#catalog-search');
+search.oninput = () => {
+  const term = search.value.trim().toLowerCase();
+  let count = 0;
+  entries.forEach(({ galaxy, button }) => {
+    button.hidden = !galaxy.name.toLowerCase().includes(term);
+    if (!button.hidden) count++;
+  });
+  element('#catalog-count').textContent = term ? count + ' / ' + entries.length : String(count);
+  element('#no-results').hidden = count > 0;
+};
 const starCanvas = document.createElement('canvas');
 starCanvas.setAttribute('aria-hidden', 'true');
 starCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
@@ -125,30 +165,71 @@ function drawSky(width: number, height: number) {
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 function setMode(value: typeof mode) {
   mode = value;
+  sceneDirty = true;
+  if (value === 'flight' || value === 'orbit') view = value === 'orbit' ? 'galaxy' : 'flight';
   element('#mode').textContent = {overview: 'Overview', orbit: 'Orbit', flight: 'Free flight'}[value];
-  element('#view-name').textContent = value === 'orbit' ? selected!.name : 'Local Group';
+  element('#view-name').textContent = value === 'orbit' ? selected!.name : view === 'mw-satellites' ? 'Milky Way satellites' : 'Local Group';
   controls.enableRotate = value !== 'flight';
 }
-function updateScale() {
-  const size = Number(sizeSlider.value), separation = Number(separationSlider.value);
+function updatePositions() {
+  const separation = Number(separationSlider.value);
   const previous = selected && models.get(selected.id)!.position.clone();
-  entries.forEach(({ galaxy, model }) => {
-    const { center, diameter } = placement(galaxy, size, separation);
-    model.position.fromArray(center);
-    model.scale.setScalar(diameter);
-  });
-  plane.grid.scale.setScalar(separation);
-  plane.grid.position.copy(plane.center).multiplyScalar(separation);
+  const previousPlane = plane.grid.quaternion.clone();
+  for (const { galaxy, model, arrow } of entries) {
+    model.position.fromArray(positionAt(galaxy, timeMyr, separation));
+    model.children[0].rotation.z = spinAt(galaxy, timeMyr);
+    if (arrow) {
+      arrow.position.copy(model.position);
+      arrow.scale.setScalar(separation);
+    }
+  }
+  plane.update(models.get('milky-way')!.position, models.get('andromeda')!.position, models.get('triangulum')!.position);
   if (mode === 'orbit' && selected && previous) {
     const shift = models.get(selected.id)!.position.clone().sub(previous);
     camera.position.add(shift);
     controls.target.add(shift);
+  } else if (mode === 'overview' && centerOnPlane) {
+    // Keep the viewing angle relative to the evolving plane, including a user's orbit.
+    const change = plane.grid.quaternion.clone().multiply(previousPlane.invert());
+    camera.position.applyQuaternion(change);
+    controls.target.applyQuaternion(change);
   }
+  sceneDirty = true;
+}
+function updateScale() {
+  const size = Number(sizeSlider.value);
+  for (const { galaxy, model } of entries) model.scale.setScalar(galaxy.diameterKpc * size);
+  updatePositions();
   if (mode === 'overview') refitGroup();
   element('#size-value').textContent = size + '×';
-  element('#separation-value').textContent = separation + '×';
+  element('#separation-value').textContent = separationSlider.value + '×';
 }
-function overview() {
+function setPlayback(direction: typeof playback) {
+  playback = direction;
+  element('#play-forward').setAttribute('aria-pressed', String(playback === 1));
+  element('#play-backward').setAttribute('aria-pressed', String(playback === -1));
+  element('#pause-time').setAttribute('aria-pressed', String(playback === 0));
+}
+function setTime(value: number) {
+  timeMyr = THREE.MathUtils.clamp(value, -timeLimitMyr, timeLimitMyr);
+  if ((timeMyr === timeLimitMyr && playback === 1) || (timeMyr === -timeLimitMyr && playback === -1)) setPlayback(0);
+  timeSlider.value = String(timeMyr);
+  const epochLabel = timeMyr === 0 ? 'Present day'
+    : Math.abs(timeMyr).toFixed(2) + ' Myr ' + (timeMyr < 0 ? 'ago' : 'ahead');
+  epoch.value = epochLabel;
+  timeSlider.setAttribute('aria-valuetext', epochLabel);
+  updatePositions();
+}
+function play(direction: -1 | 1) {
+  if (direction * timeMyr < timeLimitMyr) setPlayback(direction);
+}
+element('#play-backward').onclick = () => play(-1);
+element('#play-forward').onclick = () => play(1);
+element('#pause-time').onclick = () => setPlayback(0);
+element('#reset-time').onclick = () => { setPlayback(0); setTime(0); };
+timeSlider.oninput = () => { setPlayback(0); setTime(Number(timeSlider.value)); };
+function overview(satellites = false) {
+  view = satellites ? 'mw-satellites' : 'group';
   setMode('overview');
   const origin = models.get('milky-way')!.position;
   const axis = models.get('andromeda')!.position.clone().sub(origin).normalize();
@@ -157,6 +238,7 @@ function overview() {
   fitGroup(sight, upward, false);
 }
 function viewPlane(edgeOn: boolean) {
+  view = edgeOn ? 'plane-edge' : 'plane-top';
   setMode('overview');
   showPlane.checked = plane.grid.visible = true;
   const sight = edgeOn ? plane.across : plane.normal;
@@ -178,7 +260,8 @@ function fitGroup(sight: THREE.Vector3, upward: THREE.Vector3, anchorOnPlane: bo
   const up = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
   // Fit the physical extents in camera coordinates for the current aspect ratio.
   const bounds = new THREE.Box3();
-  entries.forEach(({model}) => {
+  entries.forEach(({galaxy, model}) => {
+    if (view === 'mw-satellites' && galaxy.id !== 'milky-way' && galaxy.hostId !== 'milky-way') return;
     const radius = model.scale.x / 2;
     const center = new THREE.Vector3(model.position.dot(right), model.position.dot(up), model.position.dot(sight));
     bounds.expandByPoint(center.clone().addScalar(radius));
@@ -215,22 +298,31 @@ function frame(edgeOn = false) {
 function select(galaxy: Galaxy) {
   if (mode === 'orbit' && selected !== galaxy) setMode('flight');
   selected = galaxy;
+  sceneDirty = true;
+  labelOrder = entries.filter(entry => entry.galaxy === selected).concat(entries.filter(entry => entry.galaxy !== selected));
   entries.forEach(entry => {
     entry.button.setAttribute('aria-pressed', String(entry.galaxy === galaxy));
     entry.label.classList.toggle('selected',entry.galaxy === galaxy);
   });
   const panel = element('#details');
   panel.hidden = false;
-  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
+  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
   panel.querySelector('h2')!.textContent = galaxy.name;
-  panel.querySelector('.measure')!.textContent = 'Adopted diameter · ' + galaxy.diameterKpc.toLocaleString('en-US') + ' kpc';
+  const brightness = galaxy.absoluteMagnitudeV;
+  panel.querySelector('.measure')!.textContent = 'Adopted diameter · ' + galaxy.diameterKpc.toLocaleString('en-US') + ' kpc'
+    + ' · Catalog distance from Sun ' + galaxy.distanceKpc.toLocaleString('en-US') + ' kpc'
+    + (brightness === undefined ? '' : ' · Absolute V magnitude ' + brightness);
+  const motion = motionInfo(galaxy);
+  const motionNotes = panel.querySelectorAll('.motion p');
+  motionNotes[0].textContent = 'Center motion · ' + motion.translation;
+  motionNotes[1].textContent = 'Internal rotation · ' + motion.rotation;
   const buttons = panel.querySelectorAll('button');
   buttons[0].onclick = buttons[1].onclick = () => frame();
   buttons[2].onclick = () => frame(true);
   const notes = panel.querySelectorAll('details p');
   notes[0].textContent = galaxy.sizeNote;
   notes[1].textContent = galaxy.modelNote;
-  for (const source of galaxy.sources) {
+  for (const source of [...galaxy.sources, ...motion.sources]) {
     const item = document.createElement('li'), link = document.createElement('a');
     link.href = source.url;
     link.textContent = source.title;
@@ -240,7 +332,8 @@ function select(galaxy: Galaxy) {
     panel.querySelector('ul')!.append(item);
   }
 }
-element('#overview').onclick = overview;
+element('#overview').onclick = () => overview();
+element('#satellites').onclick = () => overview(true);
 element('#plane-top').onclick = () => viewPlane(false);
 element('#plane-edge').onclick = () => viewPlane(true);
 sizeSlider.oninput = separationSlider.oninput = updateScale;
@@ -268,10 +361,11 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (!originPointer || mode !== 'flight' || !e.buttons) return;
   const radius = camera.position.distanceTo(controls.target);
-  const rotation = new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');
-  rotation.y -= e.movementX * 0.004;
-  rotation.x = THREE.MathUtils.clamp(rotation.x - e.movementY * 0.004,-1.55,1.55);
-  const direction = new THREE.Vector3(0,0,-1).applyEuler(rotation);
+  const direction = camera.getWorldDirection(new THREE.Vector3()).applyAxisAngle(camera.up, -e.movementX * 0.004);
+  const right = direction.clone().cross(camera.up).normalize();
+  const pitch = Math.asin(THREE.MathUtils.clamp(direction.dot(camera.up), -1, 1));
+  const nextPitch = THREE.MathUtils.clamp(pitch - e.movementY * 0.004, -1.55, 1.55);
+  direction.applyAxisAngle(right, nextPitch - pitch);
   controls.target.copy(camera.position).addScaledVector(direction,radius);
   controls.update();
 });
@@ -311,35 +405,48 @@ function resize() {
   renderer.setSize(w,h,false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  for (const entry of entries) entry.labelWidth = 0;
   drawSky(w,h);
+  sceneDirty = true;
   if (mode === 'overview') refitGroup();
 }
 const projected = new THREE.Vector3();
 function drawLabels() {
   const width = canvas.clientWidth, height = canvas.clientHeight;
   const used: {x:number,y:number,w:number}[] = [];
-  for (const {galaxy,model,label,marker,leader} of entries) {
+  for (const entry of labelOrder) {
+    const { galaxy, model, label, marker, leader } = entry;
     projected.copy(model.position).project(camera);
     const px = (projected.x+1)*width/2, py = (1-projected.y)*height/2;
     const hide = Math.abs(projected.z)>1 || px < 0 || px > width || py < 0 || py > height || (mode === 'orbit' && galaxy === selected);
-    label.hidden = marker.hidden = hide;
-    leader.style.display = hide ? 'none' : '';
-    if (hide) continue;
-    const w = label.offsetWidth;
-    const x = THREE.MathUtils.clamp(px + 12,2,width-w-2);
-    let y = THREE.MathUtils.clamp(py - 19,2,height-26);
-    for (let step = 0; step <= entries.length; step++) {
-      if (!used.some(other => x < other.x+other.w+3 && x+w+3 > other.x && Math.abs(y-other.y)<25)) break;
-      y = y + 25 < height - 26 ? y + 25 : Math.max(2,py - (step+2)*25);
+    marker.hidden = hide;
+    if (hide) {
+      label.hidden = true;
+      leader.style.display = 'none';
+      continue;
     }
-    used.push({x,y,w});
-    label.style.transform = 'translate('+x+'px,'+y+'px)';
     marker.style.left = px+'px';
     marker.style.top = py+'px';
+    if (!entry.labelWidth) {
+      label.hidden = false;
+      entry.labelWidth = label.offsetWidth;
+    }
+    const w = entry.labelWidth;
+    const x = THREE.MathUtils.clamp(px + 12,2,width-w-2);
+    // Keep crowded dwarfs as markers rather than drawing a stack of overlapping names.
+    const offsets = [-20, 5, -45, 30, -70, 55, -95, 80];
+    const y = offsets.map(offset => THREE.MathUtils.clamp(py + offset, 2, height - 26)).find(candidate =>
+      used.every(other => x > other.x + other.w + 3 || x + w + 3 < other.x || Math.abs(candidate - other.y) >= 24));
+    label.hidden = y === undefined;
+    leader.style.display = y === undefined ? 'none' : '';
+    if (y === undefined) continue;
+    used.push({x,y,w});
+    label.style.transform = 'translate('+x+'px,'+y+'px)';
     leader.setAttribute('x1',String(px)); leader.setAttribute('y1',String(py));
     leader.setAttribute('x2',String(THREE.MathUtils.clamp(px,x,x+w))); leader.setAttribute('y2',String(y+10));
   }
 }
+setPlayback(0);
 updateScale();
 overview();
 resize();
@@ -347,9 +454,13 @@ new ResizeObserver(resize).observe(canvas.parentElement!);
 const ruler = element('#distance');
 let last = performance.now();
 renderer.setAnimationLoop(now => {
-  fly(Math.min((now-last)/1000,0.1));
+  const elapsed = Math.max(0, (now - last) / 1000);
+  if (playback) setTime(timeMyr + playback * elapsed);
+  fly(Math.min(elapsed, 0.1));
   last = now;
   controls.update();
+  if (!sceneDirty) return;
+  sceneDirty = false;
   renderer.render(scene,camera);
   drawLabels();
   const kpc = 82 * 2 * camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) / canvas.clientHeight;
@@ -357,7 +468,9 @@ renderer.setAnimationLoop(now => {
 });
 Object.assign(window,{
   explorerState: () => ({
-    planeVisible: plane.grid.visible,
+    timeMyr, playback, view, velocityVectorsVisible: vectors.visible,
+    planeNormal: plane.normal.toArray(), planeVisible: plane.grid.visible,
+    spins: Object.fromEntries(entries.map(({galaxy, model}) => [galaxy.id, model.children[0].rotation.z])),
     selected: selected?.id ?? null, mode, camera: camera.position.toArray(), target: controls.target.toArray(),
     galaxies: Object.fromEntries(entries.map(({galaxy,model}) => [galaxy.id,{center:model.position.toArray(),diameter:model.scale.x}])),
     size:Number(sizeSlider.value),separation:Number(separationSlider.value)

@@ -10,6 +10,12 @@ interface SceneState {
   size: number;
   separation: number;
   planeVisible: boolean;
+  timeMyr: number;
+  playback: number;
+  velocityVectorsVisible: boolean;
+  view: string;
+  spins: Record<string, number>;
+  planeNormal: number[];
 }
 
 function readScene(page: Page) {
@@ -161,4 +167,51 @@ test('inspect the three-galaxy plane from above and edge-on, then orbit it', asy
   expect(distance(orbited.camera, edge.camera)).toBeGreaterThan(1);
   expect(orbited.planeVisible).toBe(true);
   expect(orbited.galaxies).toEqual(edge.galaxies);
+});
+
+test('search the dwarf catalog and follow measured motion through time', async ({ page }) => {
+  await openAtlas(page);
+  const initial = await readScene(page);
+  expect(initial.timeMyr).toBe(0);
+  const search = page.locator('#catalog-search');
+  await search.fill('Fornax');
+  const match = page.locator('#catalog [data-galaxy]:visible');
+  await expect(match).toHaveCount(1);
+  await match.click();
+  await expect(page.locator('#details h2')).toContainText('Fornax');
+  await search.fill('');
+
+  await page.locator('#satellites').click();
+  expect((await readScene(page)).view).toBe('mw-satellites');
+  await page.locator('#show-motion').check();
+  expect((await readScene(page)).velocityVectorsVisible).toBe(true);
+  const time = page.locator('#time');
+  await time.focus();
+  await time.press('End');
+  const future = await readScene(page);
+  expect(future.timeMyr).toBe(10);
+  expect(future.galaxies['milky-way'].center).toEqual(initial.galaxies['milky-way'].center);
+  expect(distance(future.galaxies.andromeda.center, initial.galaxies.andromeda.center)).toBeGreaterThan(0.1);
+  expect(Math.abs(future.spins['milky-way'])).toBeGreaterThan(0.01);
+
+  const atFuture = (id: string) => new Vector3().fromArray(future.galaxies[id].center);
+  const normal = atFuture('andromeda').sub(atFuture('milky-way'))
+    .cross(atFuture('triangulum').sub(atFuture('milky-way'))).normalize();
+  expect(Math.abs(normal.dot(new Vector3().fromArray(future.planeNormal)))).toBeCloseTo(1, 8);
+
+  await page.locator('#play-backward').click();
+  await expect.poll(async () => (await readScene(page)).timeMyr).toBeLessThan(10);
+  await page.locator('#pause-time').click();
+  const paused = await readScene(page);
+  expect(paused.playback).toBe(0);
+  await page.locator('#reset-time').click();
+  const reset = await readScene(page);
+  expect(reset.timeMyr).toBe(0);
+  expect(reset.galaxies).toEqual(initial.galaxies);
+  expect(reset.spins).toEqual(initial.spins);
+  await time.focus();
+  await time.press('Home');
+  expect((await readScene(page)).timeMyr).toBe(-10);
+  await page.locator('#play-forward').click();
+  await expect.poll(async () => (await readScene(page)).timeMyr).toBeGreaterThan(-10);
 });
