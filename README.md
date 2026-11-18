@@ -20,11 +20,15 @@ Open the local address printed by Vite. To build and serve the production versio
 | Locate a galaxy | Choose its catalog entry or click its map label. |
 | Orbit | Select **Frame galaxy**, then drag in the map. |
 | Inspect the model | Choose **Observed view** or **Edge-on view** in the galaxy card. |
+| Show the reference plane | Enable **Show reference plane** to draw a grid through the centers of the Milky Way, Andromeda and Triangulum. |
+| Inspect the group from two directions | Choose **Top view** to see the triangle, or **Edge-on plane view** to see the two Magellanic Clouds on the same side of the grid. Drag to change your viewing angle. |
 | Zoom | Scroll the mouse wheel. |
 | Fly freely | Use W/S to move forward/back, A/D for sideways movement and Q/E to descend/rise. Drag to look around. |
 | Return to the group | Choose **Overview** or press Home with the map focused. |
 
 At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Labels help locate small galaxies at true scale.
+
+The reference plane is a navigation aid defined by the three galaxy centers. The catalog positions stay fixed as you orbit.
 
 ## Tests
 

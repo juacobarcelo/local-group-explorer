@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { Vector3 } from 'three';
 
 interface SceneState {
   selected: string | null;
@@ -8,6 +9,7 @@ interface SceneState {
   galaxies: Record<string, { center: number[]; diameter: number }>;
   size: number;
   separation: number;
+  planeVisible: boolean;
 }
 
 function readScene(page: Page) {
@@ -112,4 +114,51 @@ test('capture visible-light reconstructions for visual review', async ({ page },
     await page.screenshot({ path });
     await testInfo.attach(name, { path, contentType: 'image/png' });
   }
+});
+
+test('inspect the three-galaxy plane from above and edge-on, then orbit it', async ({ page }) => {
+  await openAtlas(page);
+  const initial = await readScene(page);
+  const grid = page.getByRole('checkbox', { name: 'Show reference plane' });
+  await expect(grid).not.toBeChecked();
+  expect(initial.planeVisible).toBe(false);
+  await grid.check();
+  expect((await readScene(page)).planeVisible).toBe(true);
+  await grid.uncheck();
+  expect((await readScene(page)).planeVisible).toBe(false);
+
+  const origin = new Vector3().fromArray(initial.galaxies['milky-way'].center);
+  const toGalaxy = (id: string) => new Vector3().fromArray(initial.galaxies[id].center).sub(origin);
+  const normal = toGalaxy('andromeda').cross(toGalaxy('triangulum')).normalize();
+  const cameraDirection = (scene: SceneState) =>
+    new Vector3().fromArray(scene.camera).sub(new Vector3().fromArray(scene.target)).normalize();
+
+  await page.getByRole('button', { name: 'Top view', exact: true }).click();
+  const top = await readScene(page);
+  expect(top.planeVisible).toBe(true);
+  expect(Math.abs(cameraDirection(top).dot(normal))).toBeCloseTo(1, 6);
+  expect(top.galaxies).toEqual(initial.galaxies);
+
+  await setScale(page, 'Galaxy separation', 0.5);
+  const scaled = await readScene(page);
+  expect(Math.abs(cameraDirection(scaled).dot(normal))).toBeCloseTo(1, 6);
+  const largeCloud = 'large-magellanic-cloud';
+  const height = new Vector3().fromArray(scaled.galaxies[largeCloud].center).sub(origin).dot(normal);
+  expect(height).toBeCloseTo(toGalaxy(largeCloud).dot(normal) / 2, 6);
+
+  await page.getByRole('button', { name: 'Edge-on plane view', exact: true }).click();
+  const edge = await readScene(page);
+  expect(cameraDirection(edge).dot(normal)).toBeCloseTo(0, 6);
+  expect(new Vector3().fromArray(edge.camera).sub(origin).dot(normal)).toBeCloseTo(0, 4);
+
+  const map = (await page.locator('#sky').boundingBox())!;
+  const x = map.x + map.width * 0.6, y = map.y + map.height * 0.4;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 32, y + 74, { steps: 4 });
+  await page.mouse.up();
+  const orbited = await readScene(page);
+  expect(distance(orbited.camera, edge.camera)).toBeGreaterThan(1);
+  expect(orbited.planeVisible).toBe(true);
+  expect(orbited.galaxies).toEqual(edge.galaxies);
 });

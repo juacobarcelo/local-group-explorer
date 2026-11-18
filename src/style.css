@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   outline-offset: 2px;
 }
 
-header button, #overview, dialog button, #details button {
+header button, #overview, dialog button, #details button, .plane-panel button {
   background: #1a202a;
   border: 1px solid #394351;
   border-radius: 6px;
@@ -159,7 +159,7 @@ aside h1, aside h2 {
   background: #202731;
 }
 
-.scale-panel, #details {
+.plane-panel, .scale-panel, #details {
   border-top: 1px solid var(--line);
   padding-top: 22px;
 }
@@ -345,7 +345,7 @@ input[type=range] {
   margin: 12px 0;
 }
 
-#details button {
+.plane-panel button, #details button {
   font-size: 12px;
   padding: 6px 8px;
 }
@@ -498,4 +498,28 @@ dd {
   .eyebrow {
     font-size: 9px;
   }
+}
+
+
+.plane-panel p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 8px 0 12px;
+}
+
+.plane-panel label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.plane-panel input {
+  margin: 0;
+  accent-color: var(--mint);
+}
+
+.plane-panel .actions {
+  margin-bottom: 0;
 }

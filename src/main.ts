@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { galaxies, type Galaxy } from './catalog';
 import { placement, observerDirection } from './physics';
 import { createGalaxyModel } from './models';
+import { createReferencePlane } from './plane';
 import './style.css';
 
 function element<T extends HTMLElement>(selector: string) {
@@ -23,10 +24,25 @@ const renderer = createRenderer();
 renderer.setClearColor(0, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(42, 1, 0.001, 100000);
-const controls = new OrbitControls(camera, canvas);
-controls.enablePan = false;
-controls.minDistance = 0.05;
-controls.maxDistance = 16000;
+camera.position.z = 1;
+function createControls() {
+  const controls = new OrbitControls(camera, canvas);
+  controls.enablePan = false;
+  controls.minDistance = 0.05;
+  controls.maxDistance = 16000;
+  return controls;
+}
+let controls = createControls();
+function setCameraUp(up: THREE.Vector3) {
+  if (camera.up.equals(up)) return;
+  const target = controls.target.clone();
+  camera.up.copy(up);
+  // OrbitControls derives its rotation axis from camera.up during construction.
+  controls.dispose();
+  controls = createControls();
+  controls.target.copy(target);
+}
+
 const sizeSlider = element<HTMLInputElement>('#size');
 const separationSlider = element<HTMLInputElement>('#separation');
 let selected: Galaxy | undefined;
@@ -36,6 +52,15 @@ const models = new Map(galaxies.map(galaxy => {
   scene.add(model);
   return [galaxy.id, model] as const;
 }));
+function catalogCenter(id: string) {
+  const galaxy = galaxies.find(entry => entry.id === id)!;
+  return new THREE.Vector3(...placement(galaxy).center);
+}
+const plane = createReferencePlane(catalogCenter('milky-way'), catalogCenter('andromeda'), catalogCenter('triangulum'));
+scene.add(plane.grid);
+const showPlane = element<HTMLInputElement>('#show-plane');
+showPlane.onchange = () => { plane.grid.visible = showPlane.checked; };
+
 const labels = element('#labels');
 const svgNamespace = 'http://www.w3.org/2000/svg';
 const leaders = document.createElementNS(svgNamespace, 'svg');
@@ -112,12 +137,14 @@ function updateScale() {
     model.position.fromArray(center);
     model.scale.setScalar(diameter);
   });
+  plane.grid.scale.setScalar(separation);
+  plane.grid.position.copy(plane.center).multiplyScalar(separation);
   if (mode === 'orbit' && selected && previous) {
     const shift = models.get(selected.id)!.position.clone().sub(previous);
     camera.position.add(shift);
     controls.target.add(shift);
   }
-  if (mode === 'overview') overview();
+  if (mode === 'overview') refitGroup();
   element('#size-value').textContent = size + '×';
   element('#separation-value').textContent = separation + '×';
 }
@@ -127,7 +154,24 @@ function overview() {
   const axis = models.get('andromeda')!.position.clone().sub(origin).normalize();
   const upward = new THREE.Vector3(0,1,0);
   const sight = axis.clone().cross(upward).normalize().addScaledVector(upward,0.38).normalize();
-  camera.up.copy(upward);
+  fitGroup(sight, upward, false);
+}
+function viewPlane(edgeOn: boolean) {
+  setMode('overview');
+  showPlane.checked = plane.grid.visible = true;
+  const sight = edgeOn ? plane.across : plane.normal;
+  const up = edgeOn ? plane.normal : plane.across.clone().negate();
+  fitGroup(sight, up, true);
+  canvas.focus({preventScroll:true});
+}
+let centerOnPlane = false;
+function refitGroup() {
+  const sight = camera.position.clone().sub(controls.target).normalize();
+  fitGroup(sight, camera.up, centerOnPlane);
+}
+function fitGroup(sight: THREE.Vector3, upward: THREE.Vector3, anchorOnPlane: boolean) {
+  centerOnPlane = anchorOnPlane;
+  setCameraUp(upward);
   camera.position.copy(sight);
   camera.lookAt(0,0,0);
   const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
@@ -143,8 +187,16 @@ function overview() {
   const center = bounds.getCenter(new THREE.Vector3());
   const extent = bounds.getSize(new THREE.Vector3());
   controls.target.copy(right).multiplyScalar(center.x).addScaledVector(up,center.y).addScaledVector(sight,center.z);
+  // A perspective edge-on view requires the eye itself to lie in the reference plane.
+  const offset = new THREE.Vector3();
+  if (anchorOnPlane) {
+    offset.copy(plane.normal).multiplyScalar(-controls.target.dot(plane.normal));
+    controls.target.add(offset);
+  }
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  const distance = extent.z / 2 + Math.max(extent.x / camera.aspect,extent.y) / (2*tan) * 1.36;
+  const halfWidth = extent.x / 2 + Math.abs(offset.dot(right));
+  const halfHeight = extent.y / 2 + Math.abs(offset.dot(up));
+  const distance = extent.z / 2 + Math.abs(offset.dot(sight)) + Math.max(halfWidth / camera.aspect, halfHeight) / tan * 1.36;
   camera.position.copy(controls.target).addScaledVector(sight,distance);
   controls.update();
 }
@@ -154,7 +206,7 @@ function frame(edgeOn = false) {
   const direction = edgeOn ? new THREE.Vector3(1,0,0).applyQuaternion(model.quaternion)
     : new THREE.Vector3(...observerDirection(selected));
   controls.target.copy(model.position);
-  camera.up.set(0,1,0);
+  setCameraUp(new THREE.Vector3(0,1,0));
   camera.position.copy(controls.target).addScaledVector(direction.normalize(), model.scale.x * 1.72 / Math.min(camera.aspect,1));
   setMode('orbit');
   controls.update();
@@ -189,6 +241,8 @@ function select(galaxy: Galaxy) {
   }
 }
 element('#overview').onclick = overview;
+element('#plane-top').onclick = () => viewPlane(false);
+element('#plane-edge').onclick = () => viewPlane(true);
 sizeSlider.oninput = separationSlider.oninput = updateScale;
 const keys = new Set<string>();
 const flightKeys = ['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE'];
@@ -258,7 +312,7 @@ function resize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   drawSky(w,h);
-  if (mode === 'overview') overview();
+  if (mode === 'overview') refitGroup();
 }
 const projected = new THREE.Vector3();
 function drawLabels() {
@@ -287,6 +341,7 @@ function drawLabels() {
   }
 }
 updateScale();
+overview();
 resize();
 new ResizeObserver(resize).observe(canvas.parentElement!);
 const ruler = element('#distance');
@@ -302,6 +357,7 @@ renderer.setAnimationLoop(now => {
 });
 Object.assign(window,{
   explorerState: () => ({
+    planeVisible: plane.grid.visible,
     selected: selected?.id ?? null, mode, camera: camera.position.toArray(), target: controls.target.toArray(),
     galaxies: Object.fromEntries(entries.map(({galaxy,model}) => [galaxy.id,{center:model.position.toArray(),diameter:model.scale.x}])),
     size:Number(sizeSlider.value),separation:Number(separationSlider.value)
