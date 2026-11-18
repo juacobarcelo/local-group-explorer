@@ -611,3 +611,11 @@ dd {
   .stage { grid-template-rows: auto auto; }
   .timeline { padding: 10px 16px; }
 }
+
+.scenario > label { display: block; font-weight: 600; margin-bottom: 7px; }
+#motion-model { width: 100%; padding: 7px; font: inherit; font-size: 13px; border: 1px solid #394351; border-radius: 5px; background: #1a202a; color: inherit; }
+#gravity-options label { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
+#gravity-options input { accent-color: var(--mint); }
+#gravity-options p { font-size: 12px; line-height: 1.4; color: var(--muted); margin-top: 5px; }
+.gravity-key, .linear-key { display: inline-block; width: 15px; vertical-align: middle; border-top: 2px solid #6cdcc2; margin: 0 2px; }
+.linear-key { border-top: 2px dashed #ffc878; margin-left: 9px; }

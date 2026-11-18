@@ -28,7 +28,7 @@ Open the local address printed by Vite. To build and serve the production versio
 | Fly freely | Use W/S to move forward/back, A/D for sideways movement and Q/E to descend/rise. Drag to look around. |
 | Return to the group | Choose **Overview** or press Home with the map focused. |
 
-At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. In logarithmic mode each galaxy grows until its three-dimensional envelope reaches its allotted space. Nearby pairs share 95% of the distance between centers in proportion to their logarithmic sizes. The limits follow the epoch and separation settings. Two galaxies can still line up on the screen when one lies behind the other. Switch back to linear sizes to compare their physical proportions.
+At the initial **1×** settings, one scene unit represents one kiloparsec for both diameters and distances. **Galaxy size** scales each luminous body about its own center. **Galaxy separation** scales every center's offset from the center of the Milky Way. Zoom changes the camera distance. Enable logarithmic sizes to enlarge small galaxies relative to the largest galaxy in the catalog. In logarithmic mode each galaxy grows until its three-dimensional envelope reaches its allotted space. Each neighbor can grow up to half of 95% of the distance between their centers. The log view also brightens unresolved stellar tracers so nearby dwarf galaxies remain visible at group scale. The limits follow the epoch and separation settings. Two galaxies can still line up on the screen when one lies behind the other. Switch back to linear sizes to compare their physical proportions. [Chromium comparison of Fornax, Carina and M32](docs/dwarf-visibility.md)
 
 The reference plane follows the centers of the Milky Way, Andromeda and Triangulum at the selected time. Dragging to orbit changes only the camera.
 
@@ -38,7 +38,9 @@ The explorer shows 23 galaxies. A count of confirmed galaxies within one megapar
 
 ## Time and telescope observations
 
-The timeline covers ten million years before and after the catalog epoch. It combines measured center velocities in a Milky Way reference frame with illustrative disk rotation where a speed and radius have been adopted. The [motion guide](docs/motion.md) explains the sources, assumptions and coverage.
+In linear mode the timeline covers ten million years before and after the catalog epoch. It combines measured center velocities in a Milky Way reference frame with illustrative disk rotation where a speed and radius have been adopted. The [motion guide](docs/motion.md) explains the sources, assumptions and coverage.
+
+Select **Motion model → Gravity · Milky Way and Clouds**. This mode isolates the Milky Way and the Large and Small Magellanic Clouds. Scrub the timeline to compare their curved trajectories with constant-velocity motion from the same starting conditions. Toggle the dark matter halos to see their modeled extent. Hiding them leaves their gravitational influence active. The [gravity model](docs/gravity.md) describes the adopted masses, scales and numerical checks.
 
 To explore additional observations:
 

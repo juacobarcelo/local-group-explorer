@@ -135,10 +135,10 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   const { reference, core } = diskRadii(galaxy)
   const material = new ShaderMaterial({
     vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending,
-    uniforms: { viewportHeight: { value: 1 }, spinAngle: { value: 0 },
+    uniforms: { viewportHeight: { value: 1 }, minIntensity: { value: 0.00015 }, spinAngle: { value: 0 },
       referenceRadius: { value: reference }, coreRadius: { value: core } },
     vertexShader: `
-      uniform float viewportHeight, spinAngle, referenceRadius, coreRadius;
+      uniform float viewportHeight, minIntensity, spinAngle, referenceRadius, coreRadius;
       attribute float width;
       varying vec3 tint;
       void main() {
@@ -157,7 +157,7 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
         float pixels = width * length(modelViewMatrix[0].xyz) * projectionMatrix[1][1]
           * viewportHeight * 0.5 / max(0.001, -view.z);
         gl_PointSize = clamp(pixels, 1.0, 64.0);
-        tint = color * clamp(pixels * pixels, 0.00015, 1.0);
+        tint = color * clamp(pixels * pixels, minIntensity, 1.0);
       }`,
     fragmentShader: `
       varying vec3 tint;
@@ -178,4 +178,10 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   group.add(field)
   orient(group, galaxy)
   return group
+}
+
+// In a group-wide view, subpixel stellar tracers otherwise round down to black.
+export function emphasizeSubpixelStars(group: Group, enabled: boolean) {
+  const field = group.children[0] as Points<BufferGeometry, ShaderMaterial>
+  field.material.uniforms.minIntensity.value = enabled ? 0.12 : 0.00015
 }

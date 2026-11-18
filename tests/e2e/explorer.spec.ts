@@ -226,6 +226,31 @@ test('logarithmic sizes enlarge dwarf galaxies while preserving their centers', 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   const compressed = await readScene(page);
   expect(compressed.galaxies.m32.diameter).toBeGreaterThan(physical.galaxies.m32.diameter * 2);
+  // Check light in the rendered image, since a large model can still render black.
+  const center = await page.getByRole('button', { name: 'Select Fornax on map', includeHidden: true })
+    .evaluate(label => {
+      const marker = label.previousElementSibling!.getBoundingClientRect();
+      return { x: marker.x + marker.width / 2, y: marker.y + marker.height / 2 };
+    });
+  const crop = await page.screenshot({
+    clip: { x: Math.round(center.x) - 12, y: Math.round(center.y) - 12, width: 24, height: 24 },
+    style: '#sky { background: black } #labels { visibility: hidden }',
+  });
+  const brightPixels = await page.evaluate(async (png) => {
+    const bitmap = await createImageBitmap(await (await fetch('data:image/png;base64,' + png)).blob());
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (Math.max(data[i], data[i + 1], data[i + 2]) >= 24) count++;
+    }
+    return count;
+  }, crop.toString('base64'));
+  expect(brightPixels).toBeGreaterThan(15);
   const assertEnvelopes = (state: SceneState) => {
     const galaxies = Object.values(state.galaxies);
     for (let i = 0; i < galaxies.length; i++) {
