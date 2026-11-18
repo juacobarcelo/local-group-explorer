@@ -11,9 +11,33 @@ const stepMyr = 0.5
 // kpc³ / (solar mass × Myr²), from the IAU nominal solar mass parameter.
 const gravitationalConstant = 4.49850e-12
 
+export const dwarfMassSource = {
+  title: 'Dwarf half-light masses · Wolf et al. (2010), Table 1',
+  url: 'https://academic.oup.com/view-large/92651520',
+}
+
+interface GravityBody {
+  id: string
+  haloMassSolar: number
+  haloScaleKpc: number
+  baryonMassSolar: number
+  baryonScaleKpc: number
+  halfLight?: { radiusKpc: number; massSolar: number }
+}
+
+function dwarfFromHalfLight(id: string, radiusKpc: number, massSolar: number, luminosityV: number): GravityBody {
+  const baryonMassSolar = 2 * luminosityV
+  // Choose the stellar Plummer scale so exactly half the stars lie inside the measured sphere.
+  const baryonScaleKpc = radiusKpc * Math.sqrt(2 ** (2 / 3) - 1)
+  const haloScaleKpc = 2 * radiusKpc
+  const enclosedHaloFraction = (1 + (haloScaleKpc / radiusKpc) ** 2) ** -1.5
+  const haloMassSolar = (massSolar - baryonMassSolar / 2) / enclosedHaloFraction
+  return { id, haloMassSolar, haloScaleKpc, baryonMassSolar, baryonScaleKpc, halfLight: { radiusKpc, massSolar } }
+}
+
 // Each extended mass has one halo component and one compact baryonic component.
 // See docs/gravity.md for the mass budgets and the calibration of these radii.
-export const gravityBodies = [
+export const gravityBodies: GravityBody[] = [
   { id: 'milky-way', haloMassSolar: 8e11, haloScaleKpc: 50, baryonMassSolar: 7.3e10, baryonScaleKpc: 3 },
   { id: 'large-magellanic-cloud', haloMassSolar: 1.5e11, haloScaleKpc: 17, baryonMassSolar: 2e9, baryonScaleKpc: 1.5 },
   { id: 'small-magellanic-cloud', haloMassSolar: 2e10, haloScaleKpc: 5.7, baryonMassSolar: 5.2e8, baryonScaleKpc: 1 },
@@ -22,6 +46,8 @@ export const gravityBodies = [
   { id: 'andromeda', haloMassSolar: 1.396e12, haloScaleKpc: 82, baryonMassSolar: 1.04e11, baryonScaleKpc: 5 },
   // Split the 1e11 solar-mass M33 model into its approximate baryon budget and the remaining halo.
   { id: 'triangulum', haloMassSolar: 9.36e10, haloScaleKpc: 11.5, baryonMassSolar: 6.4e9, baryonScaleKpc: 2 },
+  dwarfFromHalfLight('draco', 0.291, 2.11e7, 2.2e5),
+  dwarfFromHalfLight('fornax', 0.944, 7.39e7, 1.7e7),
 ]
 
 type State = { position: Coordinates; velocity: Coordinates }[]

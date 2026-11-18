@@ -18,7 +18,7 @@ function readScene(page: Page) {
   );
 }
 
-test('compare relative motion of five galaxies and turn their dark halos on and off', async ({ page }, info) => {
+test('compare relative motion of seven galaxies and turn their dark halos on and off', async ({ page }, info) => {
   await page.goto('/');
   await page.waitForFunction(() => 'explorerState' in window);
   const catalog = await readScene(page);
@@ -34,7 +34,7 @@ test('compare relative motion of five galaxies and turn their dark halos on and 
   await page.locator('#reset-time').click();
   await mode.selectOption('gravity');
   const today = await readScene(page);
-  const ids = ['milky-way', 'large-magellanic-cloud', 'small-magellanic-cloud', 'andromeda', 'triangulum'];
+  const ids = ['milky-way', 'large-magellanic-cloud', 'small-magellanic-cloud', 'andromeda', 'triangulum', 'draco', 'fornax'];
   expect(Object.keys(today.galaxies).sort()).toEqual([...ids].sort());
   expect(today.darkHalosVisible).toBe(true);
   const distanceReadout = page.locator('#gravity-separation');
@@ -50,7 +50,7 @@ test('compare relative motion of five galaxies and turn their dark halos on and 
   await expect(distanceReadout).not.toHaveText(todaysDistance);
   const separationKpc = (state: GravityState, first: string, second: string) =>
     new Vector3().fromArray(state.galaxies[first].center).distanceTo(new Vector3().fromArray(state.galaxies[second].center));
-  for (const [first, second] of [['milky-way', 'andromeda'], ['andromeda', 'triangulum']]) {
+  for (const [first, second] of [['milky-way', 'andromeda'], ['andromeda', 'triangulum'], ['milky-way', 'draco'], ['milky-way', 'fornax']]) {
     expect(Math.abs(separationKpc(future, first, second) - separationKpc(today, first, second))).toBeGreaterThan(1);
   }
   const differenceKpc = Math.hypot(...future.galaxies[lmc].center.map((p, i) => p - linearEnd[i]));
@@ -79,6 +79,20 @@ test('compare relative motion of five galaxies and turn their dark halos on and 
   expect(reset.galaxies).toEqual(today.galaxies);
   await page.locator('#motion-model').selectOption('linear');
   expect((await readScene(page)).galaxies).toEqual(catalog.galaxies);
+});
+
+test('inspect the measured interior mass and modeled dark halo of each new satellite', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => 'explorerState' in window);
+  await page.locator('#motion-model').selectOption('gravity');
+  const details = page.locator('#details');
+  for (const [id, enclosedMass, radius] of [['draco', '21.1 million', 291], ['fornax', '73.9 million', 944]]) {
+    await page.locator(`#catalog [data-galaxy="${id}"]`).click();
+    await expect(details.locator('.enclosed-mass')).toContainText(`${enclosedMass} solar masses inside ${radius} pc`);
+    await expect(details.locator('.motion')).toContainText('Extrapolated total dark halo');
+    await details.locator('summary').click();
+    await expect(details.getByRole('link', { name: /Wolf/i })).toBeVisible();
+  }
 });
 
 test('fit the Milky Way, Andromeda and Triangulum halos in the group overview', async ({ page }) => {

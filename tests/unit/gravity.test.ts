@@ -36,6 +36,18 @@ describe('mutual Local Group gravity', () => {
     }
   })
 
+  it.each([
+    ['draco', 0.291, 2.11e7],
+    ['fornax', 0.944, 7.39e7],
+  ] as const)('matches the measured enclosed mass and curves the orbit of %s', (id, radius, measuredMass) => {
+    const dwarf = gravityBodies.find(body => body.id === id)!
+    const enclosed = (mass: number, scale: number) => mass * (radius / Math.hypot(radius, scale)) ** 3
+    const stars = enclosed(dwarf.baryonMassSolar, dwarf.baryonScaleKpc)
+    expect(stars).toBeCloseTo(dwarf.baryonMassSolar / 2)
+    expect(enclosed(dwarf.haloMassSolar, dwarf.haloScaleKpc) + stars).toBeCloseTo(measuredMass)
+    expect(distance(gravityPositionAt(id, 500), straightPositionAt(id, 500))).toBeGreaterThan(1)
+  })
+
   it('accelerates the Milky Way, preserves momentum, and displays relative positions', () => {
     const state = integrate(gravityEpoch, 0.5, 200)
     expect(Math.hypot(...state[0].position)).toBeGreaterThan(0.2)

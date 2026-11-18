@@ -5,7 +5,7 @@ import { cappedDiameters, logarithmicDiameter, observerDirection } from './physi
 import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel, emphasizeSubpixelStars } from './models';
 import { createReferencePlane } from './plane';
-import { gravityBodies, gravityPositionAt, gravityMassSource, gravityTimeLimitMyr } from './gravity';
+import { gravityBodies, gravityPositionAt, gravityMassSource, dwarfMassSource, gravityTimeLimitMyr } from './gravity';
 import { createGravityView, haloExtentInScaleRadii } from './gravity-view';
 import './style.css';
 
@@ -428,6 +428,7 @@ function updateHighlight() {
     stars.material.uniforms.contrast.value = contrast;
   }
 }
+const solarMasses = new Intl.NumberFormat('en-US', {notation: 'compact', compactDisplay: 'long', maximumSignificantDigits: 3});
 function select(galaxy: Galaxy) {
   if (mode === 'orbit' && selected !== galaxy) setMode('flight');
   if (selected !== galaxy) highlight.setAttribute('aria-pressed', 'false');
@@ -441,7 +442,7 @@ function select(galaxy: Galaxy) {
   });
   const panel = element('#details');
   panel.hidden = false;
-  panel.innerHTML = '<h2></h2><p class="measure"></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p><p id="mw-separation"></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
+  panel.innerHTML = '<h2></h2><p class="measure"></p><p class="enclosed-mass" hidden></p><div class="actions"><button>Frame galaxy</button><button>Observed view</button><button>Edge-on view</button></div><div class="motion"><p></p><p></p><p id="mw-separation"></p></div><details><summary>Model &amp; sources</summary><p></p><p></p><ul></ul></details>';
   panel.querySelector('h2')!.textContent = galaxy.name;
   const brightness = galaxy.absoluteMagnitudeV;
   panel.querySelector('.measure')!.textContent = 'Adopted diameter · ' + galaxy.diameterKpc.toLocaleString('en-US') + ' kpc'
@@ -451,12 +452,18 @@ function select(galaxy: Galaxy) {
   updateDistanceReadout();
   const motion = motionInfo(galaxy);
   const motionNotes = panel.querySelectorAll('.motion p');
-  const body = useGravity && gravityBodies.find(item => item.id === galaxy.id);
-  if (body) {
-    motionNotes[0].textContent = 'Adopted dark halo · ' + (body.haloMassSolar / 1e9)
-      + ' billion solar masses, scale radius ' + body.haloScaleKpc + ' kpc.';
-    motionNotes[1].textContent = 'Adopted ordinary matter · ' + (body.baryonMassSolar / 1e9)
-      + ' billion solar masses. All five centers contribute to gravity.';
+  const body = gravityBodies.find(item => item.id === galaxy.id);
+  if (body?.halfLight) {
+    const { massSolar, radiusKpc } = body.halfLight;
+    const measurement = panel.querySelector<HTMLElement>('.enclosed-mass')!;
+    measurement.hidden = false;
+    measurement.textContent = 'Stellar motions imply ' + solarMasses.format(massSolar) + ' solar masses inside '
+      + Math.round(radiusKpc * 1000) + ' pc, the radius enclosing half the starlight. This includes stars and dark matter.';
+  }
+  if (useGravity && body) {
+    motionNotes[0].textContent = (body.halfLight ? 'Extrapolated total dark halo' : 'Adopted total dark halo')
+      + ' · ' + solarMasses.format(body.haloMassSolar) + ' solar masses, scale radius ' + body.haloScaleKpc + ' kpc.';
+    motionNotes[1].textContent = 'Adopted ordinary matter · ' + solarMasses.format(body.baryonMassSolar) + ' solar masses.';
   } else {
     motionNotes[0].textContent = 'Center motion · ' + motion.translation;
     motionNotes[1].textContent = 'Internal rotation · ' + motion.rotation;
@@ -468,6 +475,7 @@ function select(galaxy: Galaxy) {
   notes[0].textContent = galaxy.sizeNote;
   notes[1].textContent = galaxy.modelNote;
   const sources = [...galaxy.sources, ...motion.sources];
+  if (body?.halfLight) sources.push(dwarfMassSource);
   if (useGravity && (galaxy.id === 'andromeda' || galaxy.id === 'triangulum')) sources.push(gravityMassSource);
   for (const source of sources) {
     const item = document.createElement('li'), link = document.createElement('a');
@@ -529,7 +537,7 @@ modelSelector.onchange = () => {
   timeSlider.step = useGravity ? '1' : '0.01';
   element('#play-rate').textContent = useGravity ? gravityRateMyrPerSecond + ' million years per second' : '1 million years per second';
   timelineGuide.textContent = useGravity
-    ? 'Five galaxies interact over ±2 billion years in the Milky Way frame. Halos always affect gravity. Stellar shapes are fixed.'
+    ? gravityBodies.length + ' galaxies interact over ±2 billion years in the Milky Way frame. Halos always affect gravity. Stellar shapes are fixed.'
     : linearGuide;
   setTime(timeMyr);
   if (selected) select(selected);
