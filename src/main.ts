@@ -426,11 +426,12 @@ function refreshGravityLayers() {
     sceneDirty = true;
   }
 }
-haloToggle.onchange = () => {
-  refreshGravityLayers();
-  if (haloToggle.checked && mode === 'overview') refitGroup();
-};
-pathToggle.onchange = refreshGravityLayers;
+for (const toggle of [haloToggle, pathToggle]) {
+  toggle.onchange = () => {
+    refreshGravityLayers();
+    if (toggle.checked && mode === 'overview') refitGroup();
+  };
+}
 modelSelector.onchange = () => {
   useGravity = modelSelector.value === 'gravity';
   if (useGravity && !gravityView) {

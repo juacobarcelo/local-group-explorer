@@ -73,6 +73,13 @@ test('fit the full Milky Way halo when enabled in the group overview', async ({ 
   await page.locator('#motion-model').selectOption('gravity');
   await page.locator('#compare-paths').uncheck();
   await page.locator('#overview').click();
+  const before = await readScene(page);
+  await page.locator('#compare-paths').check();
+  const after = await readScene(page);
+  const cameraDistance = (s: GravityState) => Math.hypot(...s.camera.map((x, i) => x - s.target[i]));
+  expect(cameraDistance(after)).toBeGreaterThan(cameraDistance(before));
+  await page.locator('#compare-paths').uncheck();
+  await page.locator('#overview').click();
   await page.locator('#dark-halos').check();
 
   const state = await readScene(page);
