@@ -2,7 +2,11 @@ import { galaxies } from './catalog'
 import { centerVelocityKpcPerMyr } from './motion'
 import { placement, type Coordinates } from './physics'
 
-export const gravityTimeLimitMyr = 500
+export const gravityTimeLimitMyr = 2000
+export const gravityMassSource = {
+  title: 'M31 and M33 mass models · Patel et al. (2017), Tables 2–3',
+  url: 'https://doi.org/10.1093/mnras/stw2616',
+}
 const stepMyr = 0.5
 // kpc³ / (solar mass × Myr²), from the IAU nominal solar mass parameter.
 const gravitationalConstant = 4.49850e-12
@@ -13,6 +17,11 @@ export const gravityBodies = [
   { id: 'milky-way', haloMassSolar: 8e11, haloScaleKpc: 50, baryonMassSolar: 7.3e10, baryonScaleKpc: 3 },
   { id: 'large-magellanic-cloud', haloMassSolar: 1.5e11, haloScaleKpc: 17, baryonMassSolar: 2e9, baryonScaleKpc: 1.5 },
   { id: 'small-magellanic-cloud', haloMassSolar: 2e10, haloScaleKpc: 5.7, baryonMassSolar: 5.2e8, baryonScaleKpc: 1 },
+  // Adapted from the M31a and M33 models cited above.
+  // M31a disk + bulge, and a Plummer halo matching the uncontracted NFW enclosed mass at 100 kpc.
+  { id: 'andromeda', haloMassSolar: 1.396e12, haloScaleKpc: 82, baryonMassSolar: 1.04e11, baryonScaleKpc: 5 },
+  // Split the 1e11 solar-mass M33 model into its approximate baryon budget and the remaining halo.
+  { id: 'triangulum', haloMassSolar: 9.36e10, haloScaleKpc: 11.5, baryonMassSolar: 6.4e9, baryonScaleKpc: 2 },
 ]
 
 type State = { position: Coordinates; velocity: Coordinates }[]

@@ -8,10 +8,11 @@ test('open the menu from a small map and restore the desktop sidebar', async ({ 
   const sidebar = page.locator('#explorer-menu');
   await expect(button).toBeInViewport();
   await expect(sidebar).toBeHidden();
+  const mode = page.locator('.timeline #motion-model');
+  await mode.selectOption('gravity');
+  await expect(page.locator('.timeline #dark-halos')).toBeVisible();
   await button.click();
   await expect(page.getByRole('heading', { name: /Galaxy catalog/ })).toBeInViewport();
-  await page.locator('#motion-model').selectOption('gravity');
-  await expect(page.locator('#dark-halos')).toBeInViewport();
   await page.keyboard.press('Escape');
   await expect(sidebar).toBeHidden();
   await page.setViewportSize({ width: 1440, height: 900 });

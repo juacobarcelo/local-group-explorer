@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceGravity, gravityBodies, gravityEpoch, gravityPositionAt, straightPositionAt } from '../../src/gravity'
+import { advanceGravity, gravityBodies, gravityEpoch, gravityTimeLimitMyr, gravityPositionAt, straightPositionAt } from '../../src/gravity'
 import { galaxies } from '../../src/catalog'
 import { positionAt } from '../../src/motion'
 
@@ -27,7 +27,7 @@ function integrate(state: State, dt: number, steps: number): State {
   return state
 }
 
-describe('mutual Milky Way and Magellanic Cloud gravity', () => {
+describe('mutual Local Group gravity', () => {
   it('shares the catalog epoch and the constant-velocity initial conditions', () => {
     for (const body of gravityBodies) {
       const galaxy = galaxies.find(g => g.id === body.id)!
@@ -50,11 +50,21 @@ describe('mutual Milky Way and Magellanic Cloud gravity', () => {
     expect(gravityPositionAt('large-magellanic-cloud', 100, 2)).toEqual(lmc.map(x => x * 2))
   })
 
-  it.each([-500, 500])('converges, conserves energy and reverses over %i Myr', horizon => {
+  it('moves M31 relative to the Milky Way and M33 relative to M31', () => {
+    const separation = (a: string, b: string, t: number) => distance(gravityPositionAt(a, t), gravityPositionAt(b, t))
+    for (const pair of [['andromeda', 'milky-way'], ['triangulum', 'andromeda']]) {
+      const initial = separation(pair[0], pair[1], 0)
+      expect(Math.abs(separation(pair[0], pair[1], gravityTimeLimitMyr) - initial)).toBeGreaterThan(10)
+      expect(distance(gravityPositionAt(pair[0], gravityTimeLimitMyr), straightPositionAt(pair[0], gravityTimeLimitMyr))).toBeGreaterThan(10)
+    }
+  })
+
+  it.each([-gravityTimeLimitMyr, gravityTimeLimitMyr])('converges, conserves energy and reverses over %i Myr', horizon => {
     const dt = 0.5 * Math.sign(horizon)
-    const state = integrate(gravityEpoch, dt, 1000)
-    const finer = integrate(gravityEpoch, dt / 2, 2000)
-    const reversed = integrate(state, -dt, 1000)
+    const steps = Math.abs(horizon / dt)
+    const state = integrate(gravityEpoch, dt, steps)
+    const finer = integrate(gravityEpoch, dt / 2, steps * 2)
+    const reversed = integrate(state, -dt, steps)
     expect(Math.abs(energy(state) / energy(gravityEpoch) - 1)).toBeLessThan(0.0001)
     for (let i = 0; i < state.length; i++) {
       expect(distance(state[i].position, finer[i].position)).toBeLessThan(0.005)

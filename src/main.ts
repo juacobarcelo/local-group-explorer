@@ -5,7 +5,7 @@ import { cappedDiameters, logarithmicDiameter, observerDirection } from './physi
 import { timeLimitMyr, positionAt, spinAt, motionInfo } from './motion';
 import { createGalaxyModel, emphasizeSubpixelStars } from './models';
 import { createReferencePlane } from './plane';
-import { gravityBodies, gravityPositionAt, gravityTimeLimitMyr, straightPositionAt } from './gravity';
+import { gravityBodies, gravityPositionAt, gravityMassSource, gravityTimeLimitMyr } from './gravity';
 import { createGravityView, haloExtentInScaleRadii } from './gravity-view';
 import './style.css';
 
@@ -76,6 +76,8 @@ const modelSelector = element<HTMLSelectElement>('#motion-model');
 const haloToggle = element<HTMLInputElement>('#dark-halos');
 const pathToggle = element<HTMLInputElement>('#compare-paths');
 const gravityIds = new Set<string>(gravityBodies.map(body => body.id));
+const gravitySeparation = element('#gravity-separation');
+const gravityRateMyrPerSecond = 100;
 const timelineGuide = element('#time-guide');
 const linearGuide = timelineGuide.textContent;
 let useGravity = false;
@@ -200,6 +202,10 @@ arrowPeriod.onchange = arrowScale.onchange = () => {
 
 let distanceReadout: HTMLElement | undefined;
 function updateDistanceReadout() {
+  if (useGravity) {
+    const distance = Math.hypot(...gravityPositionAt('andromeda', timeMyr));
+    gravitySeparation.textContent = 'Milky Way–Andromeda · ' + distance.toFixed(1) + ' kpc';
+  }
   if (!selected || !distanceReadout) return;
   const distance = Math.hypot(...(useGravity ? gravityPositionAt(selected.id, timeMyr) : positionAt(selected, timeMyr)));
   const original = Math.hypot(...positionAt(selected, 0));
@@ -245,7 +251,7 @@ function setMode(value: typeof mode) {
   sceneDirty = true;
   if (value === 'flight' || value === 'orbit') view = value === 'orbit' ? 'galaxy' : 'flight';
   element('#mode').textContent = {overview: 'Overview', orbit: 'Orbit', flight: 'Free flight'}[value];
-  element('#view-name').textContent = value === 'orbit' ? selected!.name : useGravity ? 'Magellanic system' : view === 'mw-satellites' ? 'Milky Way satellites' : 'Local Group';
+  element('#view-name').textContent = value === 'orbit' ? selected!.name : useGravity ? 'Local Group orbits' : view === 'mw-satellites' ? 'Milky Way satellites' : 'Local Group';
   controls.enableRotate = value !== 'flight';
 }
 function updatePositions() {
@@ -299,8 +305,10 @@ function setTime(value: number) {
   timeMyr = THREE.MathUtils.clamp(value, -limit, limit);
   if ((timeMyr === limit && playback === 1) || (timeMyr === -limit && playback === -1)) setPlayback(0);
   timeSlider.value = String(timeMyr);
-  const epochLabel = timeMyr === 0 ? 'Present day'
-    : Math.abs(timeMyr).toFixed(2) + ' Myr ' + (timeMyr < 0 ? 'ago' : 'ahead');
+  const interval = useGravity && Math.abs(timeMyr) >= 1000
+    ? (Math.abs(timeMyr) / 1000).toFixed(2) + ' Gyr'
+    : Math.abs(timeMyr).toFixed(useGravity ? 0 : 2) + ' Myr';
+  const epochLabel = timeMyr === 0 ? 'Present day' : interval + (timeMyr < 0 ? ' ago' : ' ahead');
   epoch.value = epochLabel;
   timeSlider.setAttribute('aria-valuetext', epochLabel);
   updatePositions();
@@ -317,11 +325,11 @@ function overview(satellites = false) {
   view = satellites ? 'mw-satellites' : 'group';
   setMode('overview');
   if (useGravity) {
-    const id = 'large-magellanic-cloud';
-    const position = new THREE.Vector3(...gravityPositionAt(id, 0));
-    const velocity = new THREE.Vector3(...straightPositionAt(id, 1)).sub(position);
-    const sight = position.clone().cross(velocity).normalize();
-    fitGroup(sight, position.normalize(), false);
+    // View the three large galaxies face-on, with the Milky Way–M31 baseline horizontal.
+    const andromeda = new THREE.Vector3(...gravityPositionAt('andromeda', 0)).normalize();
+    const triangulum = new THREE.Vector3(...gravityPositionAt('triangulum', 0));
+    const sight = andromeda.clone().cross(triangulum).normalize();
+    fitGroup(sight, sight.clone().cross(andromeda), false);
     return;
   }
   const origin = models.get('milky-way')!.position;
@@ -448,7 +456,7 @@ function select(galaxy: Galaxy) {
     motionNotes[0].textContent = 'Adopted dark halo · ' + (body.haloMassSolar / 1e9)
       + ' billion solar masses, scale radius ' + body.haloScaleKpc + ' kpc.';
     motionNotes[1].textContent = 'Adopted ordinary matter · ' + (body.baryonMassSolar / 1e9)
-      + ' billion solar masses. The three centers interact at all epochs.';
+      + ' billion solar masses. All five centers contribute to gravity.';
   } else {
     motionNotes[0].textContent = 'Center motion · ' + motion.translation;
     motionNotes[1].textContent = 'Internal rotation · ' + motion.rotation;
@@ -459,7 +467,9 @@ function select(galaxy: Galaxy) {
   const notes = panel.querySelectorAll('details p');
   notes[0].textContent = galaxy.sizeNote;
   notes[1].textContent = galaxy.modelNote;
-  for (const source of [...galaxy.sources, ...motion.sources]) {
+  const sources = [...galaxy.sources, ...motion.sources];
+  if (useGravity && (galaxy.id === 'andromeda' || galaxy.id === 'triangulum')) sources.push(gravityMassSource);
+  for (const source of sources) {
     const item = document.createElement('li'), link = document.createElement('a');
     link.href = source.url;
     link.textContent = source.title;
@@ -516,10 +526,10 @@ modelSelector.onchange = () => {
   const limit = currentTimeLimit();
   timeSlider.min = String(-limit);
   timeSlider.max = String(limit);
-  timeSlider.step = useGravity ? '0.1' : '0.01';
-  element('#play-rate').textContent = useGravity ? '25 million years per second' : '1 million years per second';
+  timeSlider.step = useGravity ? '1' : '0.01';
+  element('#play-rate').textContent = useGravity ? gravityRateMyrPerSecond + ' million years per second' : '1 million years per second';
   timelineGuide.textContent = useGravity
-    ? 'Center motion over ±500 Myr relative to the Milky Way. Stellar shapes stay at their present configuration.'
+    ? 'Five galaxies interact over ±2 billion years in the Milky Way frame. Halos always affect gravity. Stellar shapes are fixed.'
     : linearGuide;
   setTime(timeMyr);
   if (selected) select(selected);
@@ -659,7 +669,7 @@ const ruler = element('#distance');
 let last = performance.now();
 renderer.setAnimationLoop(now => {
   const elapsed = Math.max(0, (now - last) / 1000);
-  if (playback) setTime(timeMyr + playback * elapsed * (useGravity ? 25 : 1));
+  if (playback) setTime(timeMyr + playback * elapsed * (useGravity ? gravityRateMyrPerSecond : 1));
   fly(Math.min(elapsed, 0.1));
   last = now;
   controls.update();

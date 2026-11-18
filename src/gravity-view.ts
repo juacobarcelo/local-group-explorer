@@ -4,7 +4,7 @@ import { gravityBodies, gravityPositionAt, gravityTimeLimitMyr, straightPosition
 export const haloExtentInScaleRadii = 3;
 
 // A spherical Plummer halo projects on the sky as (1 + R²/a²)^−2.
-// Normalize the central brightness of each halo to make all three readable.
+// Normalize the central brightness of each halo to make each modeled halo readable.
 function makeHaloTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 256;
@@ -34,7 +34,7 @@ export function createGravityView() {
   const halos = new THREE.Group();
   group.add(paths, halos);
   const gravityLine = new THREE.LineBasicMaterial({ color: 0x6cdcc2 });
-  const inertialLine = new THREE.LineDashedMaterial({ color: 0xffc878, dashSize: 2.0, gapSize: 1.4 });
+  const inertialLine = new THREE.LineDashedMaterial({ color: 0xffc878, dashSize: 8, gapSize: 5 });
   const material = new THREE.SpriteMaterial({
     map: makeHaloTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });

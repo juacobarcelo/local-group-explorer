@@ -40,7 +40,7 @@ The explorer shows 23 galaxies. A count of confirmed galaxies within one megapar
 
 In linear mode the timeline covers ten million years before and after the catalog epoch. It combines measured center velocities in a Milky Way reference frame with illustrative disk rotation where a speed and radius have been adopted. The [motion guide](docs/motion.md) explains the sources, assumptions and coverage.
 
-Select **Motion model → Gravity · Milky Way and Clouds**. This mode isolates the Milky Way and the Large and Small Magellanic Clouds. Scrub the timeline to compare their curved trajectories with constant-velocity motion from the same starting conditions. Toggle the dark matter halos to see their modeled extent. Hiding them leaves their gravitational influence active. The [gravity model](docs/gravity.md) describes the adopted masses, scales and numerical checks.
+Use the mode selector beside the simulation clock. Short-term motion shows catalog velocities and stellar rotation for up to 10 million years either side of today. The gravitational mode follows the Milky Way, Andromeda, Triangulum and both Magellanic Clouds for up to 2 billion years in either direction. Scrub the timeline to compare the curved tracks with straight paths from the same starting conditions. Toggle the modeled dark matter halos to see their extent. Hiding the halos leaves their gravitational influence active. The [gravity model](docs/gravity.md) describes the adopted masses, scales and numerical checks.
 
 To explore additional observations:
 

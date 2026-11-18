@@ -14,19 +14,6 @@
   </header>
   <main>
     <aside id="explorer-menu" aria-label="Explorer menu">
-      <section class="scenario">
-        <label for="motion-model">Motion model</label>
-        <select id="motion-model">
-          <option value="linear">Observed velocities</option>
-          <option value="gravity">Gravity · Milky Way and Clouds</option>
-        </select>
-        <div id="gravity-options" hidden>
-          <label><input type="checkbox" id="compare-paths" checked> Compare trajectories</label>
-          <p id="path-key"><span class="gravity-key"></span> Gravity <span class="linear-key"></span> Constant velocity</p>
-          <label><input type="checkbox" id="dark-halos"> Show dark matter halos</label>
-          <p id="halo-key" hidden>Violet shows modeled projected dark matter density, normalized per halo. Each ring marks one halo scale radius.</p>
-        </div>
-      </section>
       <section class="catalog"><h1>Galaxy catalog <span id="catalog-count"></span></h1>
         <input type="search" id="catalog-search" aria-label="Search galaxies" placeholder="Search galaxies">
         <div id="catalog"></div><p id="no-results" hidden>No matching galaxies.</p></section>
@@ -70,7 +57,12 @@
       <div id="error" role="alert" hidden>This 3D view requires WebGL 2. Enable hardware acceleration in your browser and reload.</div>
     </section>
     <section class="timeline" aria-label="Simulation timeline">
-      <div class="timeline-title"><label for="time">Simulation time</label><output id="epoch" for="time">Present day</output></div>
+      <div class="timeline-title">
+        <div class="time-model"><label for="motion-model">Time mode</label>
+          <select id="motion-model"><option value="linear">Observed velocities · short term</option><option value="gravity">Relative motion · gravity</option></select>
+        </div>
+        <label class="epoch-label" for="time">Simulation time <output id="epoch" for="time">Present day</output></label>
+      </div>
       <input id="time" type="range" value="0" step="0.01" min="-10" max="10">
       <div class="time-actions">
         <div class="transport">
@@ -80,6 +72,13 @@
           <button id="reset-time">Return to present</button>
         </div>
         <span id="play-rate">1 million years per second</span>
+      </div>
+      <div id="gravity-options" hidden>
+        <label><input type="checkbox" id="compare-paths" checked> Compare trajectories</label>
+        <label><input type="checkbox" id="dark-halos" checked> Show dark matter halos</label>
+        <span id="gravity-separation"></span>
+        <p id="path-key"><span class="gravity-key"></span> Gravity <span class="linear-key"></span> Constant velocity</p>
+        <p id="halo-key">Violet rings mark each modeled halo’s scale radius. Brightness is normalized per halo.</p>
       </div>
       <p id="time-guide">Short-term projection at constant velocity. Galaxies without an adopted velocity stay at their catalog positions.</p>
     </section></div>
