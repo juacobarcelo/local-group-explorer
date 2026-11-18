@@ -135,10 +135,10 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
   const { reference, core } = diskRadii(galaxy)
   const material = new ShaderMaterial({
     vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending,
-    uniforms: { viewportHeight: { value: 1 }, minIntensity: { value: 0.00015 }, spinAngle: { value: 0 },
+    uniforms: { contrast: { value: 1 }, viewportHeight: { value: 1 }, minIntensity: { value: 0.00015 }, spinAngle: { value: 0 },
       referenceRadius: { value: reference }, coreRadius: { value: core } },
     vertexShader: `
-      uniform float viewportHeight, minIntensity, spinAngle, referenceRadius, coreRadius;
+      uniform float contrast, viewportHeight, minIntensity, spinAngle, referenceRadius, coreRadius;
       attribute float width;
       varying vec3 tint;
       void main() {
@@ -157,7 +157,8 @@ export function createGalaxyModel(galaxy: Galaxy): Group {
         float pixels = width * length(modelViewMatrix[0].xyz) * projectionMatrix[1][1]
           * viewportHeight * 0.5 / max(0.001, -view.z);
         gl_PointSize = clamp(pixels, 1.0, 64.0);
-        tint = color * clamp(pixels * pixels, minIntensity, 1.0);
+        float floorLight = contrast > 1.0 ? max(minIntensity, 0.25) : minIntensity;
+        tint = contrast * color * clamp(pixels * pixels, floorLight, 1.0);
       }`,
     fragmentShader: `
       varying vec3 tint;

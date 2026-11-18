@@ -395,8 +395,35 @@ function frame(edgeOn = false) {
   controls.update();
   canvas.focus({preventScroll:true});
 }
+const highlight = element<HTMLButtonElement>('#highlight-dwarf');
+highlight.onclick = () => {
+  highlight.setAttribute('aria-pressed', String(highlight.getAttribute('aria-pressed') !== 'true'));
+  sceneDirty = true;
+};
+function updateHighlight() {
+  const active = selected && !highlight.hidden && highlight.getAttribute('aria-pressed') === 'true';
+  const target = active ? models.get(selected!.id)! : undefined;
+  const center = target?.position.clone().project(camera);
+  const pixelsPerUnit = canvas.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  const radius = (model: THREE.Group) => pixelsPerUnit * model.scale.x / (2 * -model.position.clone().applyMatrix4(camera.matrixWorldInverse).z);
+  const targetRadius = target ? radius(target) : 0;
+  for (const { model } of entries) {
+    let contrast = 1;
+    if (model === target) contrast = 2.5;
+    else if (center && targetRadius > 0) {
+      const point = model.position.clone().project(camera);
+      const distance = Math.hypot((point.x - center.x) * canvas.clientWidth / 2, (point.y - center.y) * canvas.clientHeight / 2);
+      const gap = distance - targetRadius - radius(model);
+      contrast = THREE.MathUtils.lerp(0.18, 1, THREE.MathUtils.smoothstep(gap, 0, 50));
+    }
+    const stars = model.children[0] as THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    stars.material.uniforms.contrast.value = contrast;
+  }
+}
 function select(galaxy: Galaxy) {
   if (mode === 'orbit' && selected !== galaxy) setMode('flight');
+  if (selected !== galaxy) highlight.setAttribute('aria-pressed', 'false');
+  highlight.hidden = ['barred', 'ringed', 'open-spiral'].includes(galaxy.model);
   selected = galaxy;
   sceneDirty = true;
   labelOrder = entries.filter(entry => entry.galaxy === selected).concat(entries.filter(entry => entry.galaxy !== selected));
@@ -470,6 +497,8 @@ modelSelector.onchange = () => {
   for (const entry of entries) entry.model.visible = !useGravity || gravityIds.has(entry.galaxy.id);
   if (selected && !models.get(selected.id)!.visible) {
     selected = undefined;
+    highlight.hidden = true;
+    highlight.setAttribute('aria-pressed', 'false');
     distanceReadout = undefined;
     element('#details').hidden = true;
     for (const entry of entries) {
@@ -636,6 +665,8 @@ renderer.setAnimationLoop(now => {
   controls.update();
   if (!sceneDirty) return;
   sceneDirty = false;
+  camera.updateMatrixWorld();
+  updateHighlight();
   renderer.render(scene,camera);
   drawLabels();
   const kpc = 82 * 2 * camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) / canvas.clientHeight;

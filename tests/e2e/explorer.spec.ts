@@ -309,3 +309,25 @@ test('amplify elapsed displacement without moving the galaxy centers', async ({ 
   await expect(page.locator('#mw-separation')).not.toHaveText(readout);
   expect((await readScene(page)).selectedArrow).toBeNull();
 });
+
+test('highlight M32 among its neighbors without moving galaxies', async ({ page }, info) => {
+  await openAtlas(page);
+  await page.locator('#log-size').click();
+  await setScale(page, 'Galaxy size', 4);
+  await setScale(page, 'Galaxy separation', 2);
+  await page.locator('[data-galaxy="m32"]').click();
+  await page.locator('#map-names').click();
+  const toggle = page.getByRole('button', {name:'Highlight dwarf'});
+  const state = await readScene(page);
+  const sky = page.locator('#sky');
+  const options = {style: '.viewport-top {visibility:hidden}'};
+  const before = await sky.screenshot({...options, path:info.outputPath('before.png')});
+  await toggle.click();
+  const highlighted = await sky.screenshot({...options, path:info.outputPath('highlighted.png')});
+  expect(highlighted.equals(before)).toBe(false);
+  expect((await readScene(page)).galaxies).toEqual(state.galaxies);
+  await toggle.click();
+  expect((await sky.screenshot(options)).equals(before)).toBe(true);
+  await page.locator('[data-galaxy="andromeda"]').click();
+  await expect(toggle).toBeHidden();
+});

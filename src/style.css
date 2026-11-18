@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   outline-offset: 2px;
 }
 
-header button, #overview, #map-names, dialog button, #details button, .plane-panel button, #log-size {
+header button, #overview, #map-names, #highlight-dwarf, dialog button, #details button, .plane-panel button, #log-size {
   background: #1a202a;
   border: 1px solid #394351;
   border-radius: 6px;
@@ -638,4 +638,4 @@ main:has(> aside[hidden]) { grid-template-columns: minmax(0, 1fr); }
 #labels.enlarged .marker { opacity: 0; }
 #labels.enlarged line { opacity: .35; }
 .viewport-top .actions { margin: 0; justify-content: flex-end; }
-#map-names[aria-pressed=true] { color: var(--mint); }
+#highlight-dwarf[aria-pressed=true], #map-names[aria-pressed=true] { color: var(--mint); }
