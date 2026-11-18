@@ -9,10 +9,11 @@
 <body>
   <header>
     <div class="brand"><span class="brand-icon" aria-hidden="true">✧</span>Local Group Explorer</div>
-    <button id="help" aria-haspopup="dialog"><span class="key-icon">?</span> Controls</button>
+    <div class="header-actions"><button id="menu-button" aria-controls="explorer-menu" aria-expanded="true">Menu</button>
+    <button id="help" aria-haspopup="dialog"><span class="key-icon">?</span> Controls</button></div>
   </header>
   <main>
-    <aside>
+    <aside id="explorer-menu" aria-label="Explorer menu">
       <section class="scenario">
         <label for="motion-model">Motion model</label>
         <select id="motion-model">

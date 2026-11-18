@@ -619,3 +619,18 @@ dd {
 #gravity-options p { font-size: 12px; line-height: 1.4; color: var(--muted); margin-top: 5px; }
 .gravity-key, .linear-key { display: inline-block; width: 15px; vertical-align: middle; border-top: 2px solid #6cdcc2; margin: 0 2px; }
 .linear-key { border-top: 2px dashed #ffc878; margin-left: 9px; }
+
+.header-actions { display: flex; align-items: center; gap: 8px; }
+main:has(> aside[hidden]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 550px) {
+  header { position: sticky; top: 0; z-index: 10; }
+  #explorer-menu {
+    position: fixed;
+    inset: 52px auto 0 0;
+    width: min(310px, 90vw);
+    z-index: 9;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 6px 0 18px #0008;
+  }
+}

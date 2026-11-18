@@ -12,6 +12,22 @@ import './style.css';
 function element<T extends HTMLElement>(selector: string) {
   return document.querySelector<T>(selector)!;
 }
+const menuButton = element<HTMLButtonElement>('#menu-button');
+const menu = element('#explorer-menu');
+const narrowScreen = window.matchMedia('(max-width: 550px)');
+function showMenu(open: boolean) {
+  menu.hidden = !open;
+  menuButton.setAttribute('aria-expanded', String(open));
+}
+showMenu(!narrowScreen.matches);
+narrowScreen.addEventListener('change', () => showMenu(!narrowScreen.matches));
+menuButton.onclick = () => showMenu(menu.hidden);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && narrowScreen.matches && !menu.hidden && !document.querySelector('dialog[open]')) {
+    showMenu(false);
+    menuButton.focus();
+  }
+});
 const canvas = element<HTMLCanvasElement>('#sky');
 const help = element<HTMLDialogElement>('#controls');
 element('#help').onclick = () => help.showModal();
